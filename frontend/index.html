@@ -543,6 +543,14 @@
                     </div>
                 </div>
 
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>Plain Text (Copy & Paste)</h3>
+                        <button onclick="copyPlainText()" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                    </div>
+                    <pre id="plain-text-output" style="background: #f5f5f5; padding: 15px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-x: auto; max-height: 300px; overflow-y: auto;">${data.plain_text || 'Loading...'}</pre>
+                </div>
+
                 <h3 style="margin-bottom: 15px;">Active Aspects (${data.aspects.length})</h3>
                 <div class="aspects-list">
                     ${data.aspects.map(aspect => renderAspectCard(aspect)).join('')}
@@ -550,6 +558,19 @@
             `;
 
             container.innerHTML = html;
+        }
+
+        function copyPlainText() {
+            const text = document.getElementById('plain-text-output').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.innerText;
+                btn.innerText = 'Copied!';
+                setTimeout(() => { btn.innerText = originalText; }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
         }
 
         function renderAspectCard(aspect) {
@@ -561,11 +582,22 @@
                 ? '<span class="badge challenging">⚠️ Challenging</span>'
                 : '<span class="badge supportive">✓ Supportive</span>';
 
+            // Format exact date/time
+            let exactInfo = 'N/A';
+            if (aspect.exact_datetime) {
+                const [date, time] = aspect.exact_datetime.split(' ');
+                const dateObj = new Date(date + 'T' + time);
+                const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                exactInfo = `${date} ~${timeStr}`;
+            } else if (aspect.exact_date) {
+                exactInfo = `~${aspect.exact_date}`;
+            }
+
             return `
                 <div class="aspect-card ${aspect.significance.toLowerCase()}">
                     <div class="aspect-header">
                         <div class="aspect-title">
-                            ${aspect.transit_planet} ${aspect.aspect_symbol} ${aspect.natal_point}
+                            ${aspect.transit_planet} in ${aspect.transit_sign || ''} ${aspect.aspect_symbol} ${aspect.natal_point}
                         </div>
                         <div class="aspect-badges">
                             ${directionBadge}
@@ -585,8 +617,8 @@
                             </div>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Exact Date</span>
-                            <span class="detail-value">${aspect.exact_date || 'N/A'}</span>
+                            <span class="detail-label">Exact</span>
+                            <span class="detail-value">${exactInfo}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Significance</span>

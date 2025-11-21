@@ -205,6 +205,65 @@ class TransitCalculator:
 
         return best_date, min_orb
 
+    def find_exact_aspect_datetime(self, chart_key, transit_planet, natal_point, aspect_name,
+                                    start_date, start_time='12:00', timezone='America/Los_Angeles',
+                                    max_hours=168):
+        """
+        Find the exact date AND time when an aspect goes exact (for fast-moving planets)
+
+        Args:
+            chart_key: Chart identifier
+            transit_planet: Name of transiting planet
+            natal_point: Name of natal planet/point
+            aspect_name: Type of aspect
+            start_date: Date to start searching from (YYYY-MM-DD)
+            start_time: Time to start searching from (HH:MM)
+            timezone: Timezone for calculations
+            max_hours: Maximum hours to search forward (default 168 = 7 days)
+
+        Returns:
+            Tuple of (datetime_str, orb) - datetime in format 'YYYY-MM-DD HH:MM'
+        """
+        aspect_angle = ASPECTS[aspect_name]['angle']
+        natal_long = self.ncm.get_natal_position(chart_key, natal_point)
+
+        # Determine search interval based on planet speed
+        # Fast planets: Moon (12°/day), Sun/Mercury/Venus/Mars (~1°/day)
+        fast_planets = ['Moon', 'Sun', 'Mercury', 'Venus', 'Mars']
+        if transit_planet in fast_planets:
+            # Search in 15-minute intervals for fast planets
+            interval_minutes = 15
+        else:
+            # Search in 6-hour intervals for slow planets
+            interval_minutes = 360
+
+        start_dt = datetime.strptime(f"{start_date} {start_time}", '%Y-%m-%d %H:%M')
+        min_orb = float('inf')
+        best_datetime = None
+
+        intervals = (max_hours * 60) // interval_minutes
+
+        for i in range(intervals):
+            check_dt = start_dt + timedelta(minutes=i * interval_minutes)
+            date_str = check_dt.strftime('%Y-%m-%d')
+            time_str = check_dt.strftime('%H:%M')
+
+            jd = self.em.get_julian_day(date_str, time_str, timezone)
+            transit_pos = self.em.get_planet_position(transit_planet, jd)
+            transit_long = transit_pos['longitude']
+
+            orb = self.calculate_aspect_orb(transit_long, natal_long, aspect_angle)
+
+            if orb < min_orb:
+                min_orb = orb
+                best_datetime = check_dt.strftime('%Y-%m-%d %H:%M')
+
+            # If orb is increasing significantly and we found a minimum, we passed the exact time
+            if orb > min_orb + 0.01 and min_orb < 0.1:
+                break
+
+        return best_datetime, min_orb
+
     def calculate_aspect_timeline(self, chart_key, transit_planet, natal_point,
                                   aspect_name, reference_date):
         """
@@ -329,6 +388,31 @@ class TransitCalculator:
         is_challenging = aspect_name in ['Square', 'Opposition']
         return ('LOW', is_challenging)
 
+    def get_sign_from_longitude(self, longitude):
+        """Get zodiac sign name from longitude"""
+        signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+                 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
+        return signs[int(longitude / 30)]
+
+    def get_aspect_word(self, aspect_name):
+        """Get the word form of an aspect for text output"""
+        aspect_words = {
+            'Conjunction': 'conjunct',
+            'Sextile': 'sextile',
+            'Square': 'square',
+            'Trine': 'trine',
+            'Opposition': 'opposite'
+        }
+        return aspect_words.get(aspect_name, aspect_name.lower())
+
+    def format_time_12hr(self, time_24hr):
+        """Convert 24-hour time to 12-hour format with am/pm"""
+        try:
+            dt = datetime.strptime(time_24hr, '%H:%M')
+            return dt.strftime('%I:%M%p').lstrip('0').lower()
+        except:
+            return time_24hr
+
     def get_daily_dashboard(self, chart_key, date_str, max_orb=3, time_str='12:00', timezone='America/Los_Angeles'):
         """
         Get complete daily dashboard for a chart
@@ -355,18 +439,52 @@ class TransitCalculator:
             aspect['significance'] = significance
             aspect['is_challenging'] = is_challenging
 
-        # Calculate exact dates and timelines for each aspect
+        # Fast planets that get exact time calculations
+        fast_planets = ['Moon', 'Sun', 'Mercury', 'Venus', 'Mars']
+
+        # Calculate exact dates/times for each aspect
         for aspect in aspects:
-            exact_date, exact_orb = self.find_exact_aspect_date(
-                chart_key,
-                aspect['transit_planet'],
-                aspect['natal_point'],
-                aspect['aspect'],
-                date_str,
-                max_days=180
-            )
-            aspect['exact_date'] = exact_date
-            aspect['exact_orb'] = exact_orb
+            # For fast planets, calculate exact time
+            if aspect['transit_planet'] in fast_planets and aspect['is_applying']:
+                exact_datetime, exact_orb = self.find_exact_aspect_datetime(
+                    chart_key,
+                    aspect['transit_planet'],
+                    aspect['natal_point'],
+                    aspect['aspect'],
+                    date_str,
+                    time_str,
+                    timezone,
+                    max_hours=168  # Search up to 7 days ahead
+                )
+                if exact_datetime:
+                    aspect['exact_datetime'] = exact_datetime
+                    aspect['exact_orb'] = exact_orb
+                    # Also set the date portion
+                    aspect['exact_date'] = exact_datetime.split(' ')[0]
+                else:
+                    aspect['exact_datetime'] = None
+                    aspect['exact_date'] = None
+                    aspect['exact_orb'] = None
+            else:
+                # For slow planets or separating aspects, use date-only search
+                exact_date, exact_orb = self.find_exact_aspect_date(
+                    chart_key,
+                    aspect['transit_planet'],
+                    aspect['natal_point'],
+                    aspect['aspect'],
+                    date_str,
+                    max_days=180
+                )
+                aspect['exact_date'] = exact_date
+                aspect['exact_orb'] = exact_orb
+                aspect['exact_datetime'] = None
+
+            # Add sign information for plain text output
+            aspect['transit_sign'] = self.get_sign_from_longitude(aspect['transit_longitude'])
+            aspect['natal_sign'] = self.get_sign_from_longitude(aspect['natal_longitude'])
+
+        # Generate plain text list
+        plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects)
 
         return {
             'chart': chart_key,
@@ -374,8 +492,48 @@ class TransitCalculator:
             'time': time_str,
             'timezone': timezone,
             'total_aspects': len(aspects),
-            'aspects': aspects
+            'aspects': aspects,
+            'plain_text': plain_text_lines
         }
+
+    def generate_plain_text_list(self, chart_key, date_str, time_str, aspects):
+        """Generate a plain text list of aspects for easy copying"""
+        chart_name = self.ncm.get_chart(chart_key)['name']
+        time_12hr = self.format_time_12hr(time_str)
+
+        # Format the date nicely
+        dt = datetime.strptime(date_str, '%Y-%m-%d')
+        date_formatted = dt.strftime('%B %d, %Y')
+
+        lines = [f"{date_formatted} Transits at {time_12hr} PST", f"{chart_name}", ""]
+
+        for aspect in aspects:
+            direction = "applying" if aspect['is_applying'] else "separating"
+            orb_str = f"{aspect['orb']:.0f}°{int((aspect['orb'] % 1) * 60):02d}'"
+
+            # Build the aspect description
+            transit_planet = aspect['transit_planet']
+            transit_sign = aspect['transit_sign']
+            aspect_word = self.get_aspect_word(aspect['aspect'])
+            natal_point = aspect['natal_point']
+            natal_sign = aspect['natal_sign']
+
+            line = f"{transit_planet} in {transit_sign} {aspect_word} {natal_point} in {natal_sign} at {orb_str} {direction}"
+
+            # Add exact time/date info
+            if aspect.get('exact_datetime') and aspect['is_applying']:
+                exact_dt = datetime.strptime(aspect['exact_datetime'], '%Y-%m-%d %H:%M')
+                exact_date_fmt = exact_dt.strftime('%m-%d-%Y')
+                exact_time_fmt = self.format_time_12hr(exact_dt.strftime('%H:%M'))
+                line += f" | Exact {exact_date_fmt} ~{exact_time_fmt} PST"
+            elif aspect.get('exact_date') and aspect['is_applying']:
+                exact_dt = datetime.strptime(aspect['exact_date'], '%Y-%m-%d')
+                exact_date_fmt = exact_dt.strftime('%m-%d-%Y')
+                line += f" | Exact ~{exact_date_fmt}"
+
+            lines.append(line)
+
+        return "\n".join(lines)
 
     def scan_future_transits(self, chart_key, start_date, end_date,
                             transit_planets=None, aspect_types=None,
