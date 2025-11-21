@@ -509,7 +509,7 @@ class TransitCalculator:
 
         for aspect in aspects:
             direction = "applying" if aspect['is_applying'] else "separating"
-            orb_str = f"{aspect['orb']:.0f}°{int((aspect['orb'] % 1) * 60):02d}'"
+            orb_str = f"{int(aspect['orb'])}°{int((aspect['orb'] % 1) * 60):02d}'"
 
             # Build the aspect description
             transit_planet = aspect['transit_planet']
