@@ -22,17 +22,19 @@ class TransitCalculator:
             self.ncm.calculate_all_charts()
             self.ncm.save_charts_to_cache()
 
-    def get_transiting_positions(self, date_str):
+    def get_transiting_positions(self, date_str, time_str='12:00', timezone='America/Los_Angeles'):
         """
-        Get positions of all transiting planets for a given date
+        Get positions of all transiting planets for a given date and time
 
         Args:
             date_str: Date in format 'YYYY-MM-DD'
+            time_str: Time in format 'HH:MM' (default: '12:00')
+            timezone: Timezone string (default: 'America/Los_Angeles' for Pacific)
 
         Returns:
             Dictionary of planet positions
         """
-        jd = self.em.get_julian_day(date_str, '12:00', 'UTC')
+        jd = self.em.get_julian_day(date_str, time_str, timezone)
         positions = {}
 
         for planet_name in PLANETS.keys():
@@ -62,20 +64,22 @@ class TransitCalculator:
 
         return orb
 
-    def find_aspects(self, chart_key, date_str, max_orb=3):
+    def find_aspects(self, chart_key, date_str, max_orb=3, time_str='12:00', timezone='America/Los_Angeles'):
         """
-        Find all active aspects for a given chart and date
+        Find all active aspects for a given chart, date, and time
 
         Args:
             chart_key: Chart identifier ('christina', 'julian', 'davison')
             date_str: Date in format 'YYYY-MM-DD'
             max_orb: Maximum orb to consider (default 3°)
+            time_str: Time in format 'HH:MM' (default: '12:00')
+            timezone: Timezone string (default: 'America/Los_Angeles' for Pacific)
 
         Returns:
             List of active aspects
         """
         # Get transiting positions
-        transit_positions = self.get_transiting_positions(date_str)
+        transit_positions = self.get_transiting_positions(date_str, time_str, timezone)
 
         # Get natal chart
         natal_chart = self.ncm.get_chart(chart_key)
@@ -325,7 +329,7 @@ class TransitCalculator:
         is_challenging = aspect_name in ['Square', 'Opposition']
         return ('LOW', is_challenging)
 
-    def get_daily_dashboard(self, chart_key, date_str, max_orb=3):
+    def get_daily_dashboard(self, chart_key, date_str, max_orb=3, time_str='12:00', timezone='America/Los_Angeles'):
         """
         Get complete daily dashboard for a chart
 
@@ -333,11 +337,13 @@ class TransitCalculator:
             chart_key: Chart identifier
             date_str: Date in format 'YYYY-MM-DD'
             max_orb: Maximum orb to consider
+            time_str: Time in format 'HH:MM' (default: '12:00')
+            timezone: Timezone string (default: 'America/Los_Angeles' for Pacific)
 
         Returns:
             Dictionary with all aspects and metadata
         """
-        aspects = self.find_aspects(chart_key, date_str, max_orb)
+        aspects = self.find_aspects(chart_key, date_str, max_orb, time_str, timezone)
 
         # Add significance ratings
         for aspect in aspects:
@@ -365,6 +371,8 @@ class TransitCalculator:
         return {
             'chart': chart_key,
             'date': date_str,
+            'time': time_str,
+            'timezone': timezone,
             'total_aspects': len(aspects),
             'aspects': aspects
         }

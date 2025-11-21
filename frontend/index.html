@@ -349,8 +349,13 @@
             </div>
 
             <div class="control-group">
+                <label for="time-input">Time (Pacific)</label>
+                <input type="time" id="time-input" value="12:00">
+            </div>
+
+            <div class="control-group">
                 <label>&nbsp;</label>
-                <button id="today-btn">Today</button>
+                <button id="now-btn">Now</button>
             </div>
 
             <div class="control-group">
@@ -416,9 +421,13 @@
             ? 'http://localhost:5000'
             : '';
 
-        // Initialize date inputs
-        const today = new Date().toISOString().split('T')[0];
+        // Initialize date and time inputs
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const currentTime = now.toTimeString().slice(0, 5);
+
         document.getElementById('date-input').value = today;
+        document.getElementById('time-input').value = currentTime;
         document.getElementById('scan-start').value = today;
 
         const endDate = new Date();
@@ -437,8 +446,10 @@
         });
 
         // Event listeners
-        document.getElementById('today-btn').addEventListener('click', () => {
-            document.getElementById('date-input').value = today;
+        document.getElementById('now-btn').addEventListener('click', () => {
+            const now = new Date();
+            document.getElementById('date-input').value = now.toISOString().split('T')[0];
+            document.getElementById('time-input').value = now.toTimeString().slice(0, 5);
         });
 
         document.getElementById('load-btn').addEventListener('click', loadDashboard);
@@ -450,12 +461,13 @@
         async function loadDashboard() {
             const chart = document.getElementById('chart-select').value;
             const date = document.getElementById('date-input').value;
+            const time = document.getElementById('time-input').value;
 
             showLoading('dashboard-content');
             clearError();
 
             try {
-                const response = await fetch(`${API_URL}/api/dashboard/${chart}?date=${date}`);
+                const response = await fetch(`${API_URL}/api/dashboard/${chart}?date=${date}&time=${time}`);
                 if (!response.ok) throw new Error('Failed to load dashboard');
 
                 const data = await response.json();
@@ -489,9 +501,10 @@
 
         async function loadComparison() {
             const date = document.getElementById('date-input').value;
+            const time = document.getElementById('time-input').value;
 
             try {
-                const response = await fetch(`${API_URL}/api/compare?date=${date}`);
+                const response = await fetch(`${API_URL}/api/compare?date=${date}&time=${time}`);
                 if (!response.ok) throw new Error('Failed to load comparison');
 
                 const data = await response.json();

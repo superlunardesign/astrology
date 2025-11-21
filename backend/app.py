@@ -70,10 +70,14 @@ def get_dashboard(chart_key):
 
     Query params:
         date: Date in YYYY-MM-DD format (default: today)
+        time: Time in HH:MM format (default: 12:00)
+        timezone: Timezone string (default: America/Los_Angeles for Pacific)
         max_orb: Maximum orb in degrees (default: 3)
     """
     try:
         date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        time_str = request.args.get('time', '12:00')
+        timezone = request.args.get('timezone', 'America/Los_Angeles')
         max_orb = float(request.args.get('max_orb', 3))
 
         # Validate date
@@ -82,7 +86,13 @@ def get_dashboard(chart_key):
         except ValueError:
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
-        dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb)
+        # Validate time
+        try:
+            datetime.strptime(time_str, '%H:%M')
+        except ValueError:
+            return jsonify({'error': 'Invalid time format. Use HH:MM (24-hour)'}), 400
+
+        dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb, time_str, timezone)
 
         # Format aspects for display
         for aspect in dashboard['aspects']:
@@ -213,21 +223,25 @@ def scan_transits(chart_key):
 @app.route('/api/compare', methods=['GET'])
 def compare_charts():
     """
-    Compare transits across multiple charts for a given date
+    Compare transits across multiple charts for a given date and time
 
     Query params:
         date: Date in YYYY-MM-DD format (default: today)
+        time: Time in HH:MM format (default: 12:00)
+        timezone: Timezone string (default: America/Los_Angeles)
         charts: Comma-separated list of chart keys (default: all three)
     """
     try:
         date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        time_str = request.args.get('time', '12:00')
+        timezone = request.args.get('timezone', 'America/Los_Angeles')
         charts_str = request.args.get('charts', 'christina,julian,davison')
         chart_keys = charts_str.split(',')
 
         results = {}
         for chart_key in chart_keys:
             chart_key = chart_key.strip()
-            dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb=3)
+            dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb=3, time_str=time_str, timezone=timezone)
 
             # Summarize
             critical = sum(1 for a in dashboard['aspects'] if a['significance'] == 'CRITICAL')
