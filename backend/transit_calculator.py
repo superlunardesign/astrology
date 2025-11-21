@@ -366,27 +366,67 @@ class TransitCalculator:
         Returns:
             Tuple: (significance_level, is_challenging)
         """
+        # Determine if aspect is challenging based on aspect type AND planet
+        is_challenging = self.is_aspect_challenging(transit_planet, aspect_name)
+
         # Check if it's a critical transit
         for t_planet, n_points in CRITICAL_TRANSITS:
             if transit_planet == t_planet and natal_point in n_points:
-                is_challenging = aspect_name in ['Conjunction', 'Square', 'Opposition']
                 return ('CRITICAL', is_challenging)
 
         # Check if it's a high significance transit
         for t_planet, n_points in HIGH_TRANSITS:
             if transit_planet == t_planet and natal_point in n_points:
-                is_challenging = aspect_name in ['Square', 'Opposition']
                 return ('HIGH', is_challenging)
 
         # Check if it's a medium significance transit
         for t_planet, n_points in MEDIUM_TRANSITS:
             if transit_planet == t_planet and natal_point in n_points:
-                is_challenging = aspect_name in ['Square', 'Opposition']
                 return ('MEDIUM', is_challenging)
 
         # Default to low significance
-        is_challenging = aspect_name in ['Square', 'Opposition']
         return ('LOW', is_challenging)
+
+    def is_aspect_challenging(self, transit_planet, aspect_name):
+        """
+        Determine if an aspect is challenging based on planet and aspect type
+
+        Rules:
+        - Squares and Oppositions are always challenging
+        - Sextiles and Trines are always supportive
+        - Conjunctions depend on the transiting planet:
+            SUPPORTIVE: Venus, Jupiter, North Node
+            CHALLENGING: Saturn, Pluto, South Node, Mars
+            TRANSFORMATIVE (challenging): Uranus, Neptune
+            NEUTRAL: Sun, Moon, Mercury (depends on context, default supportive)
+        """
+        # Squares and Oppositions are always challenging
+        if aspect_name in ['Square', 'Opposition']:
+            return True
+
+        # Sextiles and Trines are always supportive
+        if aspect_name in ['Sextile', 'Trine']:
+            return False
+
+        # Conjunctions depend on the planet
+        if aspect_name == 'Conjunction':
+            # Supportive conjunctions
+            if transit_planet in ['Venus', 'Jupiter', 'North Node']:
+                return False
+
+            # Challenging conjunctions
+            if transit_planet in ['Saturn', 'Pluto', 'South Node', 'Mars']:
+                return True
+
+            # Transformative (treat as challenging - can go either way but often intense)
+            if transit_planet in ['Uranus', 'Neptune']:
+                return True
+
+            # Neutral planets (Sun, Moon, Mercury) - default to supportive
+            return False
+
+        # Default
+        return False
 
     def get_sign_from_longitude(self, longitude):
         """Get zodiac sign name from longitude"""
