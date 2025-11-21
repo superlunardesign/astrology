@@ -172,8 +172,8 @@ PLANETS = {
     'Uranus': 7,
     'Neptune': 8,
     'Pluto': 9,
-    'North Node': 10,  # True Node
-    'South Node': 11,  # Calculated as North Node + 180
+    'North Node': 11,  # True Node (swe.TRUE_NODE = 11, swe.MEAN_NODE = 10)
+    'South Node': 11,  # Calculated as North Node + 180 in ephemeris_manager
 }
 
 # Aspects to calculate
