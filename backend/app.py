@@ -256,11 +256,12 @@ def compare_charts():
                 'high': high,
                 'challenging': challenging,
                 'supportive': supportive,
-                'top_aspects': dashboard['aspects'][:5]
+                'top_aspects': dashboard['aspects']  # All aspects within 3° orb
             }
 
         return jsonify({
             'date': date_str,
+            'time': time_str,
             'charts': results
         })
 
