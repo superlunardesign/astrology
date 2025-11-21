@@ -546,7 +546,7 @@
                 <div style="margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <h3>Plain Text (Copy & Paste)</h3>
-                        <button onclick="copyPlainText()" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                        <button onclick="copyPlainText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
                     </div>
                     <pre id="plain-text-output" style="background: #f5f5f5; padding: 15px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-x: auto; max-height: 300px; overflow-y: auto;">${data.plain_text || 'Loading...'}</pre>
                 </div>
@@ -560,17 +560,53 @@
             container.innerHTML = html;
         }
 
-        function copyPlainText() {
+        function copyPlainText(btn) {
             const text = document.getElementById('plain-text-output').innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                const btn = event.target;
-                const originalText = btn.innerText;
-                btn.innerText = 'Copied!';
-                setTimeout(() => { btn.innerText = originalText; }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy:', err);
-                alert('Failed to copy to clipboard');
-            });
+
+            // Try modern clipboard API first
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopySuccess(btn);
+                }).catch(err => {
+                    // Fallback if clipboard API fails
+                    fallbackCopy(text, btn);
+                });
+            } else {
+                // Fallback for non-secure contexts (HTTP)
+                fallbackCopy(text, btn);
+            }
+        }
+
+        function fallbackCopy(text, btn) {
+            // Create a temporary textarea element
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                showCopySuccess(btn);
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                alert('Failed to copy. Please select the text manually and copy.');
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function showCopySuccess(btn) {
+            const originalText = btn.innerText;
+            btn.innerText = 'Copied!';
+            btn.style.background = '#2ecc71';
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.style.background = '';
+            }, 2000);
         }
 
         function renderAspectCard(aspect) {
