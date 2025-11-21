@@ -1,12 +1,110 @@
 """
 Configuration for the Transit Tracker application
+Uses exact natal positions from Time Nomad for accuracy
 """
 import os
 
 # Ephemeris path
 EPHEMERIS_PATH = os.path.join(os.path.dirname(__file__), '..', 'ephemeris')
 
-# Natal chart data
+# Helper function to convert zodiac position to longitude
+def zodiac_to_longitude(degrees, minutes, sign):
+    """Convert zodiac position to ecliptic longitude (0-360)"""
+    signs = {
+        'Aries': 0, 'Taurus': 30, 'Gemini': 60, 'Cancer': 90,
+        'Leo': 120, 'Virgo': 150, 'Libra': 180, 'Scorpio': 210,
+        'Sagittarius': 240, 'Capricorn': 270, 'Aquarius': 300, 'Pisces': 330
+    }
+    return signs[sign] + degrees + (minutes / 60)
+
+
+# Pre-calculated natal positions from Time Nomad
+# This ensures exact match with user's astrology software
+NATAL_POSITIONS = {
+    'christina': {
+        'name': 'Christina',
+        'birth_data': {
+            'date': '1992-03-26',
+            'time': '09:04',
+            'location': 'Indianapolis, Indiana'
+        },
+        'positions': {
+            'Sun': zodiac_to_longitude(6, 9, 'Aries'),           # 6°09′ Aries
+            'Moon': zodiac_to_longitude(11, 26, 'Capricorn'),    # 11°26′ Capricorn
+            'Mercury': zodiac_to_longitude(6, 14, 'Aries'),      # 6°14′ Aries
+            'Venus': zodiac_to_longitude(15, 32, 'Pisces'),      # 15°32′ Pisces
+            'Mars': zodiac_to_longitude(28, 50, 'Aquarius'),     # 28°50′ Aquarius
+            'Jupiter': zodiac_to_longitude(6, 29, 'Virgo'),      # 6°29′ Virgo
+            'Saturn': zodiac_to_longitude(15, 27, 'Aquarius'),   # 15°27′ Aquarius
+            'Uranus': zodiac_to_longitude(17, 43, 'Capricorn'),  # 17°43′ Capricorn
+            'Neptune': zodiac_to_longitude(18, 47, 'Capricorn'), # 18°47′ Capricorn
+            'Pluto': zodiac_to_longitude(22, 41, 'Scorpio'),     # 22°41′ Scorpio
+            'North Node': zodiac_to_longitude(5, 13, 'Capricorn'), # 5°13′ Capricorn (TrueNode)
+            'South Node': zodiac_to_longitude(5, 13, 'Cancer'),  # Opposite of North Node
+            'Chiron': zodiac_to_longitude(3, 21, 'Cancer'),      # 3°21′ Cancer
+            'Ascendant': zodiac_to_longitude(28, 53, 'Taurus'),  # 28°53′ Taurus
+            'MC': zodiac_to_longitude(6, 43, 'Aquarius'),        # 6°43′ Aquarius
+            'Descendant': zodiac_to_longitude(28, 53, 'Scorpio'), # Opposite of Ascendant
+            'IC': zodiac_to_longitude(6, 43, 'Leo'),             # Opposite of MC
+        }
+    },
+    'julian': {
+        'name': 'Julian',
+        'birth_data': {
+            'date': '2002-02-16',
+            'time': '00:30',
+            'location': 'Olympia, Washington'
+        },
+        'positions': {
+            'Sun': zodiac_to_longitude(27, 29, 'Aquarius'),      # 27°29′ Aquarius
+            'Moon': zodiac_to_longitude(11, 23, 'Aries'),        # 11°23′ Aries
+            'Mercury': zodiac_to_longitude(1, 38, 'Aquarius'),   # 1°38′ Aquarius
+            'Venus': zodiac_to_longitude(5, 23, 'Pisces'),       # 5°23′ Pisces
+            'Mars': zodiac_to_longitude(20, 32, 'Aries'),        # 20°32′ Aries
+            'Jupiter': zodiac_to_longitude(5, 55, 'Cancer'),     # 5°55′ Cancer
+            'Saturn': zodiac_to_longitude(8, 6, 'Gemini'),       # 8°06′ Gemini
+            'Uranus': zodiac_to_longitude(24, 58, 'Aquarius'),   # 24°58′ Aquarius
+            'Neptune': zodiac_to_longitude(9, 10, 'Aquarius'),   # 9°10′ Aquarius
+            'Pluto': zodiac_to_longitude(17, 20, 'Sagittarius'), # 17°20′ Sagittarius
+            'North Node': zodiac_to_longitude(24, 48, 'Gemini'), # 24°48′ Gemini (TrueNode)
+            'South Node': zodiac_to_longitude(24, 48, 'Sagittarius'), # Opposite of North Node
+            'Chiron': zodiac_to_longitude(6, 38, 'Capricorn'),   # 6°38′ Capricorn
+            'Ascendant': zodiac_to_longitude(14, 55, 'Scorpio'), # 14°55′ Scorpio
+            'MC': zodiac_to_longitude(28, 37, 'Leo'),            # 28°37′ Leo
+            'Descendant': zodiac_to_longitude(14, 55, 'Taurus'), # Opposite of Ascendant
+            'IC': zodiac_to_longitude(28, 37, 'Aquarius'),       # Opposite of MC
+        }
+    },
+    'davison': {
+        'name': 'Davison',
+        'birth_data': {
+            'date': '1997-03-07',
+            'time': '03:58',
+            'location': 'Lusk, Wyoming'
+        },
+        'positions': {
+            'Sun': zodiac_to_longitude(16, 54, 'Pisces'),        # 16°54′ Pisces
+            'Moon': zodiac_to_longitude(24, 20, 'Aquarius'),     # 24°20′ Aquarius
+            'Mercury': zodiac_to_longitude(13, 8, 'Pisces'),     # 13°08′ Pisces
+            'Venus': zodiac_to_longitude(10, 21, 'Pisces'),      # 10°21′ Pisces
+            'Mars': zodiac_to_longitude(0, 29, 'Libra'),         # 0°29′ Libra
+            'Jupiter': zodiac_to_longitude(10, 11, 'Aquarius'),  # 10°11′ Aquarius
+            'Saturn': zodiac_to_longitude(7, 20, 'Aries'),       # 7°20′ Aries
+            'Uranus': zodiac_to_longitude(6, 56, 'Aquarius'),    # 6°56′ Aquarius
+            'Neptune': zodiac_to_longitude(29, 8, 'Capricorn'),  # 29°08′ Capricorn
+            'Pluto': zodiac_to_longitude(5, 36, 'Sagittarius'),  # 5°36′ Sagittarius
+            'North Node': zodiac_to_longitude(28, 44, 'Virgo'),  # 28°44′ Virgo (TrueNode)
+            'South Node': zodiac_to_longitude(28, 44, 'Pisces'), # Opposite of North Node
+            'Chiron': zodiac_to_longitude(1, 39, 'Cancer'),      # 1°39′ Cancer
+            'Ascendant': zodiac_to_longitude(21, 57, 'Capricorn'), # 21°57′ Capricorn
+            'MC': zodiac_to_longitude(17, 43, 'Scorpio'),        # 17°43′ Scorpio
+            'Descendant': zodiac_to_longitude(21, 57, 'Cancer'), # Opposite of Ascendant
+            'IC': zodiac_to_longitude(17, 43, 'Taurus'),         # Opposite of MC
+        }
+    }
+}
+
+# Legacy birth data (kept for reference)
 NATAL_CHARTS = {
     'christina': {
         'name': 'Christina',
@@ -49,7 +147,7 @@ NATAL_CHARTS = {
     }
 }
 
-# Planets to track
+# Planets to track for transits
 PLANETS = {
     'Sun': 0,
     'Moon': 1,

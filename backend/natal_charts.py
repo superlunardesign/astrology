@@ -1,82 +1,36 @@
 """
 Natal Chart Manager
-Calculates and manages natal chart positions for Christina, Julian, and Davison
+Uses pre-calculated positions from Time Nomad for accuracy
 """
-from ephemeris_manager import EphemerisManager
-from config import NATAL_CHARTS
-import json
-import os
+from config import NATAL_POSITIONS
 
 
 class NatalChartManager:
-    """Manages natal chart data for all three charts"""
+    """Manages natal chart data for all three charts using pre-calculated positions"""
 
     def __init__(self):
-        self.em = EphemerisManager()
         self.charts = {}
-        self.cache_file = 'natal_charts_cache.json'
+        self._load_precalculated_positions()
 
-    def calculate_natal_chart(self, chart_key):
-        """
-        Calculate natal chart positions for a given chart
+    def _load_precalculated_positions(self):
+        """Load pre-calculated natal positions from config"""
+        for chart_key, chart_data in NATAL_POSITIONS.items():
+            self.charts[chart_key] = {
+                'name': chart_data['name'],
+                'birth_data': chart_data['birth_data'],
+                'positions': {}
+            }
 
-        Args:
-            chart_key: Key from NATAL_CHARTS ('christina', 'julian', 'davison')
-
-        Returns:
-            Dictionary with all natal positions
-        """
-        if chart_key not in NATAL_CHARTS:
-            raise ValueError(f"Unknown chart: {chart_key}")
-
-        chart_data = NATAL_CHARTS[chart_key]
-        location = chart_data['location']
-
-        positions = self.em.get_all_positions(
-            chart_data['date'],
-            chart_data['time'],
-            location['timezone'],
-            location['latitude'],
-            location['longitude']
-        )
-
-        return {
-            'name': chart_data['name'],
-            'birth_data': {
-                'date': chart_data['date'],
-                'time': chart_data['time'],
-                'location': location
-            },
-            'positions': positions
-        }
-
-    def calculate_all_charts(self):
-        """Calculate all three natal charts"""
-        for chart_key in NATAL_CHARTS.keys():
-            self.charts[chart_key] = self.calculate_natal_chart(chart_key)
-
-    def save_charts_to_cache(self):
-        """Save calculated charts to JSON file"""
-        # Convert to serializable format
-        cache_data = {}
-        for chart_key, chart in self.charts.items():
-            cache_data[chart_key] = chart
-
-        with open(self.cache_file, 'w') as f:
-            json.dump(cache_data, f, indent=2)
-
-    def load_charts_from_cache(self):
-        """Load charts from cache file if it exists"""
-        if os.path.exists(self.cache_file):
-            with open(self.cache_file, 'r') as f:
-                self.charts = json.load(f)
-            return True
-        return False
+            # Convert simple longitude values to position dict format
+            for point_name, longitude in chart_data['positions'].items():
+                self.charts[chart_key]['positions'][point_name] = {
+                    'longitude': longitude
+                }
 
     def get_chart(self, chart_key):
         """Get a specific natal chart"""
         if chart_key not in self.charts:
-            self.charts[chart_key] = self.calculate_natal_chart(chart_key)
+            raise ValueError(f"Unknown chart: {chart_key}")
         return self.charts[chart_key]
 
     def get_natal_position(self, chart_key, planet_name):
@@ -124,16 +78,15 @@ class NatalChartManager:
         print(f"\n{'='*60}")
         print(f"NATAL CHART: {chart['name']}")
         print(f"{'='*60}")
-        print(f"Birth Date: {chart['birth_data']['date']}")
-        print(f"Birth Time: {chart['birth_data']['time']}")
-        print(f"Location: {chart['birth_data']['location']['city']}, {chart['birth_data']['location']['state']}")
+        print(f"Birth: {chart['birth_data']['date']} at {chart['birth_data']['time']}")
+        print(f"Location: {chart['birth_data']['location']}")
         print(f"\n{'Planet':<15} {'Position':<20} {'Longitude':<12}")
         print(f"{'-'*60}")
 
         # Print planets
         for planet_name in ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars',
                            'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto',
-                           'North Node', 'South Node']:
+                           'North Node', 'South Node', 'Chiron']:
             if planet_name in chart['positions']:
                 long = chart['positions'][planet_name]['longitude']
                 formatted = self.format_position(long)
@@ -148,20 +101,35 @@ class NatalChartManager:
                 formatted = self.format_position(long)
                 print(f"{angle_name:<15} {formatted:<20} {long:>10.2f}°")
 
+    def calculate_all_charts(self):
+        """For compatibility - positions are already loaded"""
+        pass
+
+    def save_charts_to_cache(self):
+        """For compatibility - not needed with pre-calculated positions"""
+        pass
+
+    def load_charts_from_cache(self):
+        """For compatibility - always returns True since positions are pre-loaded"""
+        return True
+
 
 if __name__ == '__main__':
-    # Test natal chart calculation
-    print("Calculating natal charts...")
+    # Test natal chart display
+    print("Loading pre-calculated natal charts from Time Nomad...")
 
     ncm = NatalChartManager()
-
-    # Calculate all charts
-    ncm.calculate_all_charts()
 
     # Print all charts
     for chart_key in ['christina', 'julian', 'davison']:
         ncm.print_chart(chart_key)
 
-    # Save to cache
-    ncm.save_charts_to_cache()
-    print(f"\nCharts saved to {ncm.cache_file}")
+    # Verify specific positions
+    print("\n" + "="*60)
+    print("VERIFICATION OF KEY POSITIONS:")
+    print("="*60)
+
+    julian = ncm.get_chart('julian')
+    print(f"\nJulian's North Node: {ncm.format_position(julian['positions']['North Node']['longitude'])} ({julian['positions']['North Node']['longitude']:.2f}°)")
+    print(f"Julian's Mercury: {ncm.format_position(julian['positions']['Mercury']['longitude'])} ({julian['positions']['Mercury']['longitude']:.2f}°)")
+    print(f"Julian's Ascendant: {ncm.format_position(julian['positions']['Ascendant']['longitude'])} ({julian['positions']['Ascendant']['longitude']:.2f}°)")
