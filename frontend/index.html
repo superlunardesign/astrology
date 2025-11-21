@@ -362,6 +362,13 @@
                 <label>&nbsp;</label>
                 <button id="load-btn">Load Transits</button>
             </div>
+
+            <div class="control-group" style="margin-left: 20px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="show-houses" style="width: 18px; height: 18px; cursor: pointer;">
+                    Show Houses
+                </label>
+            </div>
         </div>
 
         <div id="error-container"></div>
@@ -455,6 +462,16 @@
         document.getElementById('load-btn').addEventListener('click', loadDashboard);
         document.getElementById('scan-btn').addEventListener('click', scanTransits);
 
+        // Toggle houses - re-render views when changed
+        document.getElementById('show-houses').addEventListener('change', () => {
+            if (lastDashboardData) {
+                renderDashboard(lastDashboardData);
+            }
+            if (lastCompareData) {
+                renderComparison(lastCompareData);
+            }
+        });
+
         // Load on page load
         loadDashboard();
 
@@ -514,7 +531,16 @@
             }
         }
 
+        // Store data globally for re-rendering when toggle changes
+        let lastDashboardData = null;
+        let lastCompareData = null;
+
         function renderDashboard(data) {
+            // Get chart name for plain text
+            const chartSelect = document.getElementById('chart-select');
+            data.chart_name = chartSelect.options[chartSelect.selectedIndex].text;
+            lastDashboardData = data;
+
             const container = document.getElementById('dashboard-content');
 
             // Calculate stats
@@ -522,6 +548,9 @@
             const high = data.aspects.filter(a => a.significance === 'HIGH').length;
             const challenging = data.aspects.filter(a => a.is_challenging).length;
             const supportive = data.aspects.filter(a => !a.is_challenging).length;
+
+            // Generate plain text client-side (respects toggle state)
+            const plainText = generateDashboardPlainText(data);
 
             const html = `
                 <div class="summary">
@@ -548,7 +577,7 @@
                         <h3>Plain Text (Copy & Paste)</h3>
                         <button onclick="copyPlainText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
                     </div>
-                    <pre id="plain-text-output" style="background: #f5f5f5; padding: 15px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-x: auto; max-height: 300px; overflow-y: auto;">${data.plain_text || 'Loading...'}</pre>
+                    <pre id="plain-text-output" style="background: #f5f5f5; padding: 15px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-x: auto; max-height: 300px; overflow-y: auto;">${plainText}</pre>
                 </div>
 
                 <h3 style="margin-bottom: 15px;">Active Aspects (${data.aspects.length})</h3>
@@ -598,6 +627,7 @@
         }
 
         function renderAspectCard(aspect) {
+            const showHouses = document.getElementById('show-houses').checked;
             const directionBadge = aspect.is_applying
                 ? '<span class="badge applying">→ Applying</span>'
                 : '<span class="badge separating">← Separating</span>';
@@ -617,11 +647,14 @@
                 exactInfo = `~${aspect.exact_date}`;
             }
 
+            // House info for title
+            const houseInfo = (showHouses && aspect.transit_house) ? ` (${getOrdinal(aspect.transit_house)} house)` : '';
+
             return `
                 <div class="aspect-card ${aspect.significance.toLowerCase()}">
                     <div class="aspect-header">
                         <div class="aspect-title">
-                            ${aspect.transit_planet} in ${aspect.transit_sign || ''} ${aspect.aspect_symbol} ${aspect.natal_point}
+                            ${aspect.transit_planet} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
                         </div>
                         <div class="aspect-badges">
                             ${directionBadge}
@@ -726,12 +759,53 @@
             return lines.join('\n');
         }
 
+        function generateDashboardPlainText(data) {
+            const showHouses = document.getElementById('show-houses').checked;
+            const dateObj = new Date(data.date + 'T12:00:00');
+            const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const time12hr = formatTime12hr(data.time || '12:00');
+
+            let lines = [dateFormatted + ' Transits at ' + time12hr + ' PST', data.chart_name || '', ''];
+
+            data.aspects.forEach(aspect => {
+                const direction = aspect.is_applying ? 'applying' : 'separating';
+                const orbDeg = Math.floor(aspect.orb);
+                const orbMin = Math.floor((aspect.orb % 1) * 60);
+                const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
+
+                const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
+                let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+
+                if (aspect.exact_datetime && aspect.is_applying) {
+                    const [date, time] = aspect.exact_datetime.split(' ');
+                    const exactDate = new Date(date + 'T' + time);
+                    const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                    line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
+                } else if (aspect.exact_date && aspect.is_applying) {
+                    line += ' | Exact ~' + aspect.exact_date;
+                }
+
+                lines.push(line);
+            });
+
+            return lines.join('\n');
+        }
+
+        function formatTime12hr(time24) {
+            const [hours, minutes] = time24.split(':');
+            const h = parseInt(hours);
+            const suffix = h >= 12 ? 'pm' : 'am';
+            const h12 = h % 12 || 12;
+            return h12 + ':' + minutes + suffix;
+        }
+
         function copyScannerText(btn) {
             const text = document.getElementById('scanner-text-output').innerText;
             copyTextToClipboard(text, btn);
         }
 
         function renderComparison(data) {
+            lastCompareData = data;
             const container = document.getElementById('compare-content');
 
             // Generate combined plain text for all charts
@@ -780,6 +854,7 @@
         }
 
         function generateComparePlainText(data) {
+            const showHouses = document.getElementById('show-houses').checked;
             const dateObj = new Date(data.date + 'T12:00:00');
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + (data.time || '12:00') + ' PST', ''];
@@ -797,7 +872,9 @@
                         const orbMin = Math.floor((aspect.orb % 1) * 60);
                         const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
 
-                        let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                        // Include house info if toggle is on
+                        const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
+                        let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
                         if (aspect.exact_datetime && aspect.is_applying) {
                             const [date, time] = aspect.exact_datetime.split(' ');
@@ -828,6 +905,12 @@
                 'Opposition': 'opposite'
             };
             return words[aspectName] || aspectName.toLowerCase();
+        }
+
+        function getOrdinal(n) {
+            const s = ['th', 'st', 'nd', 'rd'];
+            const v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
         }
 
         function copyCompareText(btn) {

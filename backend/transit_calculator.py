@@ -120,6 +120,9 @@ class TransitCalculator:
                         # Calculate strength (100% at exact, 0% at max orb)
                         strength = (1 - (orb / aspect_orb)) * 100
 
+                        # Get house position for transiting planet
+                        transit_house = self.ncm.get_house_for_longitude(chart_key, transit_long)
+
                         aspects.append({
                             'transit_planet': transit_planet,
                             'natal_point': natal_point,
@@ -131,7 +134,8 @@ class TransitCalculator:
                             'is_applying': is_applying,
                             'transit_longitude': transit_long,
                             'natal_longitude': natal_long,
-                            'transit_speed': transit_speed
+                            'transit_speed': transit_speed,
+                            'transit_house': transit_house
                         })
 
         # Sort by orb (closest first)

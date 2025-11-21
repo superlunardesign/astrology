@@ -2,7 +2,8 @@
 Natal Chart Manager
 Uses pre-calculated positions from Time Nomad for accuracy
 """
-from config import NATAL_POSITIONS
+from config import NATAL_POSITIONS, NATAL_CHARTS
+from ephemeris_manager import EphemerisManager
 
 
 class NatalChartManager:
@@ -10,7 +11,9 @@ class NatalChartManager:
 
     def __init__(self):
         self.charts = {}
+        self.em = EphemerisManager()
         self._load_precalculated_positions()
+        self._calculate_house_cusps()
 
     def _load_precalculated_positions(self):
         """Load pre-calculated natal positions from config"""
@@ -18,7 +21,8 @@ class NatalChartManager:
             self.charts[chart_key] = {
                 'name': chart_data['name'],
                 'birth_data': chart_data['birth_data'],
-                'positions': {}
+                'positions': {},
+                'house_cusps': []  # Will be populated by _calculate_house_cusps
             }
 
             # Convert simple longitude values to position dict format
@@ -26,6 +30,67 @@ class NatalChartManager:
                 self.charts[chart_key]['positions'][point_name] = {
                     'longitude': longitude
                 }
+
+    def _calculate_house_cusps(self):
+        """Calculate Placidus house cusps for each chart"""
+        for chart_key in self.charts:
+            if chart_key in NATAL_CHARTS:
+                birth_data = NATAL_CHARTS[chart_key]
+                loc = birth_data['location']
+
+                # Get Julian day for birth time
+                jd = self.em.get_julian_day(
+                    birth_data['date'],
+                    birth_data['time'],
+                    loc['timezone']
+                )
+
+                # Calculate house cusps using Placidus
+                cusps_data = self.em.get_house_cusps(
+                    jd,
+                    loc['latitude'],
+                    loc['longitude'],
+                    'P'  # Placidus
+                )
+
+                # Store cusps (1-12, index 0 is cusp 1)
+                self.charts[chart_key]['house_cusps'] = cusps_data['cusps']
+
+    def get_house_for_longitude(self, chart_key, longitude):
+        """
+        Determine which house a given longitude falls into
+
+        Args:
+            chart_key: Chart identifier
+            longitude: Ecliptic longitude (0-360)
+
+        Returns:
+            House number (1-12)
+        """
+        chart = self.get_chart(chart_key)
+        cusps = chart.get('house_cusps', [])
+
+        if not cusps or len(cusps) < 12:
+            return None
+
+        # Normalize longitude to 0-360
+        longitude = longitude % 360
+
+        # Find which house the longitude falls into
+        for i in range(12):
+            cusp_start = cusps[i]
+            cusp_end = cusps[(i + 1) % 12]
+
+            # Handle wrap-around at 0°/360°
+            if cusp_start > cusp_end:
+                # This house spans 0° Aries
+                if longitude >= cusp_start or longitude < cusp_end:
+                    return i + 1
+            else:
+                if cusp_start <= longitude < cusp_end:
+                    return i + 1
+
+        return 1  # Default to 1st house if not found
 
     def get_chart(self, chart_key):
         """Get a specific natal chart"""
