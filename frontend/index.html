@@ -337,8 +337,8 @@
             <div class="control-group">
                 <label for="chart-select">Chart</label>
                 <select id="chart-select">
-                    <option value="christina">Christina</option>
-                    <option value="julian" selected>Julian</option>
+                    <option value="christina" selected>Christina</option>
+                    <option value="julian">Julian</option>
                     <option value="davison">Davison (Midpoint)</option>
                 </select>
             </div>
@@ -562,19 +562,7 @@
 
         function copyPlainText(btn) {
             const text = document.getElementById('plain-text-output').innerText;
-
-            // Try modern clipboard API first
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text).then(() => {
-                    showCopySuccess(btn);
-                }).catch(err => {
-                    // Fallback if clipboard API fails
-                    fallbackCopy(text, btn);
-                });
-            } else {
-                // Fallback for non-secure contexts (HTTP)
-                fallbackCopy(text, btn);
-            }
+            copyTextToClipboard(text, btn);
         }
 
         function fallbackCopy(text, btn) {
@@ -673,10 +661,23 @@
                 return;
             }
 
+            // Generate plain text for scanner
+            const chartName = document.getElementById('chart-select').options[document.getElementById('chart-select').selectedIndex].text;
+            const scannerPlainText = generateScannerPlainText(data, chartName);
+
             const html = `
                 <p style="color: #666; margin-bottom: 20px;">
                     Found ${data.total_found} upcoming exact transits from ${data.start_date} to ${data.end_date}
                 </p>
+
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>Plain Text (Copy & Paste)</h3>
+                        <button onclick="copyScannerText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                    </div>
+                    <pre id="scanner-text-output" style="background: #f5f5f5; padding: 15px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-x: auto; max-height: 300px; overflow-y: auto;">${scannerPlainText}</pre>
+                </div>
+
                 <div class="aspects-list">
                     ${data.transits.map(transit => `
                         <div class="aspect-card ${transit.significance.toLowerCase()}">
@@ -706,11 +707,39 @@
             container.innerHTML = html;
         }
 
+        function generateScannerPlainText(data, chartName) {
+            let lines = [`Upcoming Exact Transits: ${chartName}`, `${data.start_date} to ${data.end_date}`, ''];
+
+            data.transits.forEach(transit => {
+                const type = transit.is_challenging ? 'Challenging' : 'Supportive';
+                lines.push(`${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point} [${transit.significance}] (${type})`);
+            });
+
+            return lines.join('\n');
+        }
+
+        function copyScannerText(btn) {
+            const text = document.getElementById('scanner-text-output').innerText;
+            copyTextToClipboard(text, btn);
+        }
+
         function renderComparison(data) {
             const container = document.getElementById('compare-content');
 
+            // Generate combined plain text for all charts
+            const comparePlainText = generateComparePlainText(data);
+
             const html = `
-                <p style="color: #666; margin-bottom: 20px;">Transit comparison for ${data.date}</p>
+                <p style="color: #666; margin-bottom: 20px;">Transit comparison for ${data.date} at ${data.time || '12:00'} PST</p>
+
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>All Charts - Plain Text (Copy & Paste)</h3>
+                        <button onclick="copyCompareText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                    </div>
+                    <pre id="compare-text-output" style="background: #f5f5f5; padding: 15px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-x: auto; max-height: 400px; overflow-y: auto;">${comparePlainText}</pre>
+                </div>
+
                 ${Object.entries(data.charts).map(([key, chart]) => `
                     <div style="margin-bottom: 30px;">
                         <h3 style="margin-bottom: 15px;">${chart.name}</h3>
@@ -740,6 +769,74 @@
             `;
 
             container.innerHTML = html;
+        }
+
+        function generateComparePlainText(data) {
+            const dateObj = new Date(data.date + 'T12:00:00');
+            const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + (data.time || '12:00') + ' PST', ''];
+
+            Object.entries(data.charts).forEach(([key, chart]) => {
+                lines.push('══════════════════════════════════════════════════');
+                lines.push(chart.name.toUpperCase());
+                lines.push('══════════════════════════════════════════════════');
+                lines.push('');
+
+                if (chart.top_aspects && chart.top_aspects.length > 0) {
+                    chart.top_aspects.forEach(aspect => {
+                        const direction = aspect.is_applying ? 'applying' : 'separating';
+                        const orbDeg = Math.floor(aspect.orb);
+                        const orbMin = Math.floor((aspect.orb % 1) * 60);
+                        const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
+
+                        let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+
+                        if (aspect.exact_datetime && aspect.is_applying) {
+                            const [date, time] = aspect.exact_datetime.split(' ');
+                            const exactDate = new Date(date + 'T' + time);
+                            const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                            line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
+                        } else if (aspect.exact_date && aspect.is_applying) {
+                            line += ' | Exact ~' + aspect.exact_date;
+                        }
+
+                        lines.push(line);
+                    });
+                } else {
+                    lines.push('No significant aspects');
+                }
+                lines.push('');
+            });
+
+            return lines.join('\n');
+        }
+
+        function getAspectWord(aspectName) {
+            const words = {
+                'Conjunction': 'conjunct',
+                'Sextile': 'sextile',
+                'Square': 'square',
+                'Trine': 'trine',
+                'Opposition': 'opposite'
+            };
+            return words[aspectName] || aspectName.toLowerCase();
+        }
+
+        function copyCompareText(btn) {
+            const text = document.getElementById('compare-text-output').innerText;
+            copyTextToClipboard(text, btn);
+        }
+
+        function copyTextToClipboard(text, btn) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopySuccess(btn);
+                }).catch(err => {
+                    fallbackCopy(text, btn);
+                });
+            } else {
+                fallbackCopy(text, btn);
+            }
         }
 
         function showLoading(containerId) {
