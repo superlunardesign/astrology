@@ -539,7 +539,7 @@ class TransitCalculator:
                             transit_planets=None, aspect_types=None,
                             min_significance='LOW'):
         """
-        Scan forward to find upcoming exact aspects
+        Scan forward to find upcoming exact aspects (optimized version)
 
         Args:
             chart_key: Chart identifier
@@ -565,6 +565,18 @@ class TransitCalculator:
         end = datetime.strptime(end_date, '%Y-%m-%d')
         days_to_scan = (end - start).days
 
+        # Pre-calculate transit positions for all days at once (OPTIMIZATION)
+        # This avoids recalculating the same planet positions repeatedly
+        transit_cache = {}
+        for day_offset in range(days_to_scan + 1):
+            check_date = start + timedelta(days=day_offset)
+            date_str = check_date.strftime('%Y-%m-%d')
+            jd = self.em.get_julian_day(date_str, '12:00', 'UTC')
+
+            transit_cache[date_str] = {}
+            for transit_planet in transit_planets:
+                transit_cache[date_str][transit_planet] = self.em.get_planet_position(transit_planet, jd)
+
         upcoming = []
         natal_chart = self.ncm.get_chart(chart_key)
         natal_points = list(PLANETS.keys()) + ['Ascendant', 'MC', 'Descendant', 'IC']
@@ -575,31 +587,55 @@ class TransitCalculator:
                 if natal_point not in natal_chart['positions']:
                     continue
 
+                natal_long = natal_chart['positions'][natal_point]['longitude']
+
                 for aspect_name in aspect_types:
-                    # Find exact date
-                    exact_date, exact_orb = self.find_exact_aspect_date(
-                        chart_key, transit_planet, natal_point, aspect_name,
-                        start_date, max_days=days_to_scan
+                    aspect_angle = ASPECTS[aspect_name]['angle']
+
+                    # Check significance first to skip low-priority combos
+                    significance, is_challenging = self.rate_aspect_significance(
+                        transit_planet, natal_point, aspect_name
                     )
+                    sig_index = significance_order.index(significance)
+                    if sig_index > min_sig_index:
+                        continue  # Skip this combination
 
-                    if exact_date and exact_orb < 0.5:  # Only include if very close to exact
-                        # Check significance
-                        significance, is_challenging = self.rate_aspect_significance(
-                            transit_planet, natal_point, aspect_name
-                        )
+                    # Find minimum orb in our cached data
+                    min_orb = float('inf')
+                    best_date = None
+                    prev_orb = None
 
-                        sig_index = significance_order.index(significance)
-                        if sig_index <= min_sig_index:
-                            upcoming.append({
-                                'chart': chart_key,
-                                'transit_planet': transit_planet,
-                                'natal_point': natal_point,
-                                'aspect': aspect_name,
-                                'exact_date': exact_date,
-                                'exact_orb': exact_orb,
-                                'significance': significance,
-                                'is_challenging': is_challenging
-                            })
+                    for day_offset in range(days_to_scan + 1):
+                        check_date = start + timedelta(days=day_offset)
+                        date_str = check_date.strftime('%Y-%m-%d')
+
+                        transit_long = transit_cache[date_str][transit_planet]['longitude']
+                        orb = self.calculate_aspect_orb(transit_long, natal_long, aspect_angle)
+
+                        if orb < min_orb:
+                            min_orb = orb
+                            best_date = date_str
+
+                        # Optimization: if orb was decreasing and now increasing,
+                        # and we found a good aspect, we can stop
+                        if prev_orb is not None and orb > prev_orb and min_orb < 1.0:
+                            # Check if we should continue (planet might come back due to retrograde)
+                            if orb > 5:  # Far enough away, probably won't come back
+                                break
+
+                        prev_orb = orb
+
+                    if best_date and min_orb < 0.5:  # Only include if very close to exact
+                        upcoming.append({
+                            'chart': chart_key,
+                            'transit_planet': transit_planet,
+                            'natal_point': natal_point,
+                            'aspect': aspect_name,
+                            'exact_date': best_date,
+                            'exact_orb': min_orb,
+                            'significance': significance,
+                            'is_challenging': is_challenging
+                        })
 
         # Sort by date
         upcoming.sort(key=lambda x: x['exact_date'])
