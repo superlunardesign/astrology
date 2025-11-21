@@ -50,8 +50,8 @@ NATAL_POSITIONS = {
             'Uranus': zodiac_to_longitude(17, 43, 0, 'Capricorn'),      # 17°43′ Capricorn
             'Neptune': zodiac_to_longitude(18, 47, 0, 'Capricorn'),     # 18°47′ Capricorn
             'Pluto': zodiac_to_longitude(22, 41, 0, 'Scorpio'),         # 22°41′ Scorpio
-            'North Node': zodiac_to_longitude(5, 13, 0, 'Capricorn'),   # 5°13′ Capricorn (TrueNode)
-            'South Node': zodiac_to_longitude(5, 13, 0, 'Cancer'),      # Opposite of North Node
+            'North Node': zodiac_to_longitude(5, 16, 22.97, 'Capricorn'),   # 5°16′22.97″ Capricorn (TrueNode)
+            'South Node': zodiac_to_longitude(5, 16, 22.97, 'Cancer'),      # Opposite of North Node
             'Chiron': zodiac_to_longitude(3, 21, 0, 'Cancer'),          # 3°21′ Cancer
             'Ascendant': zodiac_to_longitude(28, 53, 0, 'Taurus'),      # 28°53′ Taurus
             'MC': zodiac_to_longitude(6, 43, 0, 'Aquarius'),            # 6°43′ Aquarius
@@ -78,8 +78,8 @@ NATAL_POSITIONS = {
             'Uranus': zodiac_to_longitude(24, 58, 0, 'Aquarius'),      # 24°58′ Aquarius
             'Neptune': zodiac_to_longitude(9, 10, 0, 'Aquarius'),      # 9°10′ Aquarius
             'Pluto': zodiac_to_longitude(17, 20, 0, 'Sagittarius'),    # 17°20′ Sagittarius
-            'North Node': zodiac_to_longitude(24, 48, 0, 'Gemini'),    # 24°48′ Gemini (TrueNode)
-            'South Node': zodiac_to_longitude(24, 48, 0, 'Sagittarius'), # Opposite of North Node
+            'North Node': zodiac_to_longitude(20, 50, 57.83, 'Gemini'),    # 20°50′57.83″ Gemini (TrueNode)
+            'South Node': zodiac_to_longitude(20, 50, 57.83, 'Sagittarius'), # Opposite of North Node
             'Chiron': zodiac_to_longitude(6, 38, 0, 'Capricorn'),      # 6°38′ Capricorn
             'Ascendant': zodiac_to_longitude(14, 55, 0, 'Scorpio'),    # 14°55′ Scorpio
             'MC': zodiac_to_longitude(28, 37, 0, 'Leo'),               # 28°37′ Leo
@@ -106,8 +106,8 @@ NATAL_POSITIONS = {
             'Uranus': zodiac_to_longitude(6, 56, 0, 'Aquarius'),       # 6°56′ Aquarius
             'Neptune': zodiac_to_longitude(29, 8, 0, 'Capricorn'),     # 29°08′ Capricorn
             'Pluto': zodiac_to_longitude(5, 36, 0, 'Sagittarius'),     # 5°36′ Sagittarius
-            'North Node': zodiac_to_longitude(28, 43, 56, 'Virgo'),    # 28°43′56″ Virgo (TrueNode)
-            'South Node': zodiac_to_longitude(28, 43, 56, 'Pisces'),   # Opposite of North Node
+            'North Node': zodiac_to_longitude(28, 37, 57.19, 'Virgo'),    # 28°37′57.19″ Virgo (TrueNode)
+            'South Node': zodiac_to_longitude(28, 37, 57.19, 'Pisces'),   # Opposite of North Node
             'Chiron': zodiac_to_longitude(1, 39, 0, 'Cancer'),         # 1°39′ Cancer
             'Ascendant': zodiac_to_longitude(21, 57, 0, 'Capricorn'),  # 21°57′ Capricorn
             'MC': zodiac_to_longitude(17, 43, 0, 'Scorpio'),           # 17°43′ Scorpio
