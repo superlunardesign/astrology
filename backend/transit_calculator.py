@@ -626,12 +626,36 @@ class TransitCalculator:
                         prev_orb = orb
 
                     if best_date and min_orb < 0.5:  # Only include if very close to exact
+                        # Find when aspect exits 3° orb after exact date
+                        exit_date = None
+                        exact_dt = datetime.strptime(best_date, '%Y-%m-%d')
+
+                        # Search forward from exact date to find exit
+                        for exit_offset in range(1, 365):  # Search up to a year
+                            exit_check = exact_dt + timedelta(days=exit_offset)
+                            exit_date_str = exit_check.strftime('%Y-%m-%d')
+
+                            # Check if we have cached data, otherwise calculate
+                            if exit_date_str in transit_cache:
+                                exit_long = transit_cache[exit_date_str][transit_planet]['longitude']
+                            else:
+                                jd = self.em.get_julian_day(exit_date_str, '12:00', 'UTC')
+                                exit_pos = self.em.get_planet_position(transit_planet, jd)
+                                exit_long = exit_pos['longitude']
+
+                            exit_orb = self.calculate_aspect_orb(exit_long, natal_long, aspect_angle)
+
+                            if exit_orb > 3.0:
+                                exit_date = exit_date_str
+                                break
+
                         upcoming.append({
                             'chart': chart_key,
                             'transit_planet': transit_planet,
                             'natal_point': natal_point,
                             'aspect': aspect_name,
                             'exact_date': best_date,
+                            'exit_date': exit_date,
                             'exact_orb': min_orb,
                             'significance': significance,
                             'is_challenging': is_challenging

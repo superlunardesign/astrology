@@ -695,6 +695,10 @@
                                     <span class="detail-value">${transit.exact_orb.toFixed(4)}°</span>
                                 </div>
                                 <div class="detail-item">
+                                    <span class="detail-label">Exits 3° Orb</span>
+                                    <span class="detail-value">${transit.exit_date || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
                                     <span class="detail-label">Significance</span>
                                     <span class="detail-value">${transit.significance}</span>
                                 </div>
@@ -712,7 +716,11 @@
 
             data.transits.forEach(transit => {
                 const type = transit.is_challenging ? 'Challenging' : 'Supportive';
-                lines.push(`${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point} [${transit.significance}] (${type})`);
+                let line = `${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point} [${transit.significance}] (${type})`;
+                if (transit.exit_date) {
+                    line += ` | Exits 3° on ${transit.exit_date}`;
+                }
+                lines.push(line);
             });
 
             return lines.join('\n');
