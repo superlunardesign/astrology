@@ -114,6 +114,33 @@ NATAL_POSITIONS = {
             'Descendant': zodiac_to_longitude(21, 57, 0, 'Cancer'),    # Opposite of Ascendant
             'IC': zodiac_to_longitude(17, 43, 0, 'Taurus'),            # Opposite of MC
         }
+    },
+    'anna': {
+        'name': 'Anna',
+        'birth_data': {
+            'date': '1992-04-27',
+            'time': '21:15',
+            'location': 'Seattle, Washington'
+        },
+        'positions': {
+            # Exact positions from Time Nomad with arc seconds
+            'Sun': zodiac_to_longitude(8, 7, 29.77, 'Taurus'),         # 8°07′29.77″ Taurus
+            'Moon': zodiac_to_longitude(14, 2, 49.01, 'Pisces'),       # 14°02′49.01″ Pisces
+            'Mercury': zodiac_to_longitude(11, 27, 58.04, 'Aries'),    # 11°27′58.04″ Aries
+            'Venus': zodiac_to_longitude(25, 42, 56.93, 'Aries'),      # 25°42′56.93″ Aries
+            'Mars': zodiac_to_longitude(24, 3, 20.47, 'Pisces'),       # 24°03′20.47″ Pisces
+            'Jupiter': zodiac_to_longitude(4, 38, 17.31, 'Virgo'),     # 4°38′17.31″ Virgo
+            'Saturn': zodiac_to_longitude(17, 44, 15.75, 'Aquarius'),  # 17°44′15.75″ Aquarius
+            'Uranus': zodiac_to_longitude(17, 59, 42.99, 'Capricorn'), # 17°59′42.99″ Capricorn
+            'Neptune': zodiac_to_longitude(18, 56, 13.23, 'Capricorn'),# 18°56′13.23″ Capricorn
+            'Pluto': zodiac_to_longitude(21, 57, 1.20, 'Scorpio'),     # 21°57′1.20″ Scorpio
+            'North Node': zodiac_to_longitude(2, 18, 10.00, 'Capricorn'),  # 2°18′10.00″ Capricorn (TrueNode)
+            'South Node': zodiac_to_longitude(2, 18, 10.00, 'Cancer'),     # Opposite of North Node
+            'Ascendant': zodiac_to_longitude(19, 48, 35.68, 'Scorpio'),    # 19°48′35.68″ Scorpio
+            'MC': zodiac_to_longitude(6, 1, 53.69, 'Virgo'),           # 6°01′53.69″ Virgo
+            'Descendant': zodiac_to_longitude(19, 48, 35.68, 'Taurus'),    # Opposite of Ascendant
+            'IC': zodiac_to_longitude(6, 1, 53.69, 'Pisces'),          # Opposite of MC
+        }
     }
 }
 
@@ -156,6 +183,19 @@ NATAL_CHARTS = {
             'latitude': 42.7627,
             'longitude': -104.4522,
             'timezone': 'America/Denver'
+        }
+    },
+    'anna': {
+        'name': 'Anna',
+        'date': '1992-04-27',
+        'time': '21:15',
+        'location': {
+            'city': 'Seattle',
+            'state': 'Washington',
+            'country': 'USA',
+            'latitude': 47.6062,
+            'longitude': -122.3321,
+            'timezone': 'America/Los_Angeles'
         }
     }
 }
