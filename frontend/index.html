@@ -143,11 +143,74 @@
             padding: 20px;
             margin-bottom: 15px;
             transition: all 0.3s;
+            cursor: pointer;
         }
 
         .aspect-card:hover {
             border-color: #667eea;
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .timeline-container {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: none;
+        }
+
+        .timeline-container.expanded {
+            display: block;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .timeline-marker {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+            margin-right: 15px;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+
+        .timeline-marker.exact {
+            width: 16px;
+            height: 16px;
+            background: #e74c3c;
+            box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.2);
+        }
+
+        .timeline-content {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .timeline-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .timeline-date {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .timeline-loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
         }
 
         .aspect-card.critical {
@@ -370,6 +433,13 @@
                     Show Houses
                 </label>
             </div>
+
+            <div class="control-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="show-entry-dates" style="width: 18px; height: 18px; cursor: pointer;">
+                    Show Entry Dates
+                </label>
+            </div>
         </div>
 
         <div id="error-container"></div>
@@ -473,6 +543,13 @@
             }
         });
 
+        // Toggle entry dates - re-render scanner when changed
+        document.getElementById('show-entry-dates').addEventListener('change', () => {
+            if (lastScannerData) {
+                renderScanner(lastScannerData);
+            }
+        });
+
         // Load on page load
         loadDashboard();
 
@@ -535,6 +612,7 @@
         // Store data globally for re-rendering when toggle changes
         let lastDashboardData = null;
         let lastCompareData = null;
+        let lastScannerData = null;
 
         function renderDashboard(data) {
             // Get chart name for plain text
@@ -651,11 +729,15 @@
             // House info for title
             const houseInfo = (showHouses && aspect.transit_house) ? ` (${getOrdinal(aspect.transit_house)} house)` : '';
 
+            // Create unique ID for this aspect card
+            const aspectId = `aspect-${aspect.transit_planet.replace(/\s+/g, '-')}-${aspect.aspect.replace(/\s+/g, '-')}-${aspect.natal_point.replace(/\s+/g, '-')}`;
+
             return `
-                <div class="aspect-card ${aspect.significance.toLowerCase()}">
+                <div class="aspect-card ${aspect.significance.toLowerCase()}" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}')">
                     <div class="aspect-header">
                         <div class="aspect-title">
                             ${aspect.transit_planet} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
+                            <span style="font-size: 12px; color: #999; margin-left: 8px;">▼ Click for timeline</span>
                         </div>
                         <div class="aspect-badges">
                             ${directionBadge}
@@ -683,11 +765,16 @@
                             <span class="detail-value">${aspect.significance}</span>
                         </div>
                     </div>
+                    <div class="timeline-container" id="${aspectId}-timeline">
+                        <div class="timeline-loading">Click to load timeline...</div>
+                    </div>
                 </div>
             `;
         }
 
         function renderScanner(data) {
+            lastScannerData = data;
+            const showEntryDates = document.getElementById('show-entry-dates').checked;
             const container = document.getElementById('scanner-content');
 
             if (data.transits.length === 0) {
@@ -713,7 +800,33 @@
                 </div>
 
                 <div class="aspects-list">
-                    ${data.transits.map(transit => `
+                    ${data.transits.map(transit => {
+                        // Build detail items dynamically
+                        let details = `
+                            <div class="detail-item">
+                                <span class="detail-label">Exact Orb</span>
+                                <span class="detail-value">${transit.exact_orb.toFixed(4)}°</span>
+                            </div>`;
+
+                        if (showEntryDates && transit.entry_date) {
+                            details += `
+                            <div class="detail-item">
+                                <span class="detail-label">Enters 3° Orb</span>
+                                <span class="detail-value">${transit.entry_date}</span>
+                            </div>`;
+                        }
+
+                        details += `
+                            <div class="detail-item">
+                                <span class="detail-label">Exits 3° Orb</span>
+                                <span class="detail-value">${transit.exit_date || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Significance</span>
+                                <span class="detail-value">${transit.significance}</span>
+                            </div>`;
+
+                        return `
                         <div class="aspect-card ${transit.significance.toLowerCase()}">
                             <div class="aspect-header">
                                 <div class="aspect-title">
@@ -724,21 +837,10 @@
                                 </div>
                             </div>
                             <div class="aspect-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">Exact Orb</span>
-                                    <span class="detail-value">${transit.exact_orb.toFixed(4)}°</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Exits 3° Orb</span>
-                                    <span class="detail-value">${transit.exit_date || 'N/A'}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Significance</span>
-                                    <span class="detail-value">${transit.significance}</span>
-                                </div>
+                                ${details}
                             </div>
-                        </div>
-                    `).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>
             `;
 
@@ -746,11 +848,15 @@
         }
 
         function generateScannerPlainText(data, chartName) {
+            const showEntryDates = document.getElementById('show-entry-dates').checked;
             let lines = [`Upcoming Exact Transits: ${chartName}`, `${data.start_date} to ${data.end_date}`, ''];
 
             data.transits.forEach(transit => {
                 const type = transit.is_challenging ? 'Challenging' : 'Supportive';
                 let line = `${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point} [${transit.significance}] (${type})`;
+                if (showEntryDates && transit.entry_date) {
+                    line += ` | Enters 3° on ${transit.entry_date}`;
+                }
                 if (transit.exit_date) {
                     line += ` | Exits 3° on ${transit.exit_date}`;
                 }
@@ -952,6 +1058,129 @@
 
         function clearError() {
             document.getElementById('error-container').innerHTML = '';
+        }
+
+        async function toggleTimeline(aspectId, transitPlanet, natalPoint, aspectName) {
+            event.stopPropagation();  // Prevent event bubbling
+
+            const timelineContainer = document.getElementById(`${aspectId}-timeline`);
+            const isExpanded = timelineContainer.classList.contains('expanded');
+
+            if (isExpanded) {
+                // Collapse timeline
+                timelineContainer.classList.remove('expanded');
+                return;
+            }
+
+            // Expand and load timeline
+            timelineContainer.classList.add('expanded');
+
+            // Check if already loaded
+            if (timelineContainer.dataset.loaded === 'true') {
+                return;
+            }
+
+            // Show loading state
+            timelineContainer.innerHTML = '<div class="timeline-loading">Loading timeline...</div>';
+
+            try {
+                const chart = document.getElementById('chart-select').value;
+                const date = document.getElementById('date-input').value;
+
+                const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${date}`);
+
+                if (!response.ok) throw new Error('Failed to load timeline');
+
+                const data = await response.json();
+                renderTimeline(timelineContainer, data);
+                timelineContainer.dataset.loaded = 'true';
+            } catch (error) {
+                console.error('Timeline error:', error);
+                timelineContainer.innerHTML = '<div class="timeline-loading" style="color: #e74c3c;">Failed to load timeline</div>';
+            }
+        }
+
+        function renderTimeline(container, data) {
+            const timeline = data.timeline;
+
+            const timelineItems = [];
+
+            // Entry points (in reverse chronological order for display)
+            if (timeline.enter_5deg) {
+                timelineItems.push({
+                    label: 'Enters 5° orb',
+                    date: timeline.enter_5deg,
+                    type: 'enter'
+                });
+            }
+            if (timeline.enter_3deg) {
+                timelineItems.push({
+                    label: 'Enters 3° orb',
+                    date: timeline.enter_3deg,
+                    type: 'enter'
+                });
+            }
+            if (timeline.enter_1deg) {
+                timelineItems.push({
+                    label: 'Enters 1° orb',
+                    date: timeline.enter_1deg,
+                    type: 'enter'
+                });
+            }
+
+            // Exact point
+            if (timeline.exact_date) {
+                timelineItems.push({
+                    label: 'EXACT',
+                    date: timeline.exact_date,
+                    type: 'exact',
+                    orb: timeline.exact_orb
+                });
+            }
+
+            // Exit points
+            if (timeline.leave_1deg) {
+                timelineItems.push({
+                    label: 'Leaves 1° orb',
+                    date: timeline.leave_1deg,
+                    type: 'leave'
+                });
+            }
+            if (timeline.leave_3deg) {
+                timelineItems.push({
+                    label: 'Leaves 3° orb',
+                    date: timeline.leave_3deg,
+                    type: 'leave'
+                });
+            }
+            if (timeline.leave_5deg) {
+                timelineItems.push({
+                    label: 'Leaves 5° orb',
+                    date: timeline.leave_5deg,
+                    type: 'leave'
+                });
+            }
+
+            let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline</h4>';
+
+            timelineItems.forEach(item => {
+                const markerClass = item.type === 'exact' ? 'timeline-marker exact' : 'timeline-marker';
+                const dateFormatted = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const orbInfo = item.orb !== undefined ? ` (${item.orb.toFixed(4)}°)` : '';
+
+                html += `
+                    <div class="timeline-item">
+                        <div class="${markerClass}"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-label">${item.label}${orbInfo}</div>
+                            <div class="timeline-date">${dateFormatted}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
         }
     </script>
 </body>

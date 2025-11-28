@@ -670,11 +670,31 @@ class TransitCalculator:
                         prev_orb = orb
 
                     if best_date and min_orb < 0.5:  # Only include if very close to exact
-                        # Find when aspect exits 3° orb after exact date
-                        exit_date = None
                         exact_dt = datetime.strptime(best_date, '%Y-%m-%d')
 
-                        # Search forward from exact date to find exit
+                        # Find when aspect enters 3° orb before exact date
+                        entry_date = None
+                        for entry_offset in range(1, 365):  # Search backward up to a year
+                            entry_check = exact_dt - timedelta(days=entry_offset)
+                            entry_date_str = entry_check.strftime('%Y-%m-%d')
+
+                            # Check if we have cached data, otherwise calculate
+                            if entry_date_str in transit_cache:
+                                entry_long = transit_cache[entry_date_str][transit_planet]['longitude']
+                            else:
+                                jd = self.em.get_julian_day(entry_date_str, '12:00', 'UTC')
+                                entry_pos = self.em.get_planet_position(transit_planet, jd)
+                                entry_long = entry_pos['longitude']
+
+                            entry_orb = self.calculate_aspect_orb(entry_long, natal_long, aspect_angle)
+
+                            if entry_orb > 3.0:
+                                # We went too far back, the entry is the previous day
+                                entry_date = (entry_check + timedelta(days=1)).strftime('%Y-%m-%d')
+                                break
+
+                        # Find when aspect exits 3° orb after exact date
+                        exit_date = None
                         for exit_offset in range(1, 365):  # Search up to a year
                             exit_check = exact_dt + timedelta(days=exit_offset)
                             exit_date_str = exit_check.strftime('%Y-%m-%d')
@@ -699,6 +719,7 @@ class TransitCalculator:
                             'natal_point': natal_point,
                             'aspect': aspect_name,
                             'exact_date': best_date,
+                            'entry_date': entry_date,
                             'exit_date': exit_date,
                             'exact_orb': min_orb,
                             'significance': significance,
