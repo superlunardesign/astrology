@@ -145,9 +145,9 @@ NATAL_POSITIONS = {
     'superlunar': {
         'name': 'Superlunar Design Co.',
         'birth_data': {
-            'date': '2022-03-02',  # Placeholder - update with actual incorporation date
-            'time': '12:00',       # Placeholder - update with actual time
-            'location': 'TBD'      # Placeholder - update with actual location
+            'date': '2022-03-01',
+            'time': '17:07',
+            'location': 'Monterey, California'
         },
         'positions': {
             # Positions from Time Nomad
@@ -228,15 +228,15 @@ NATAL_CHARTS = {
     },
     'superlunar': {
         'name': 'Superlunar Design Co.',
-        'date': '2022-03-02',  # Placeholder - update with actual incorporation date
-        'time': '12:00',       # Placeholder - update with actual time
+        'date': '2022-03-01',
+        'time': '17:07',
         'location': {
-            'city': 'TBD',
-            'state': 'TBD',
+            'city': 'Monterey',
+            'state': 'California',
             'country': 'USA',
-            'latitude': 0.0,    # Placeholder - update with actual coordinates
-            'longitude': 0.0,   # Placeholder - update with actual coordinates
-            'timezone': 'America/Los_Angeles'  # Placeholder - update with actual timezone
+            'latitude': 36.6002,
+            'longitude': -121.8947,
+            'timezone': 'America/Los_Angeles'
         }
     }
 }
