@@ -273,6 +273,11 @@ class TransitCalculator:
         """
         Calculate complete timeline for an aspect (entry, exact, exit dates)
 
+        Handles retrograde motion by finding the current transit window:
+        - Searches backward from reference date to find when aspect entered orb
+        - Searches forward from reference date to find when aspect exits orb
+        - Finds exact dates within that window
+
         Args:
             chart_key: Chart identifier
             transit_planet: Name of transiting planet
@@ -286,75 +291,115 @@ class TransitCalculator:
         aspect_angle = ASPECTS[aspect_name]['angle']
         natal_long = self.ncm.get_natal_position(chart_key, natal_point)
 
-        # Find dates when aspect enters and leaves different orbs
         timeline = {
             'enter_5deg': None,
             'enter_3deg': None,
             'enter_1deg': None,
-            'exact_date': None,
+            'exact_dates': [],  # Can have multiple exact passes due to retrograde
+            'exact_date': None,  # Nearest exact date to reference
             'exact_orb': None,
             'leave_1deg': None,
             'leave_3deg': None,
             'leave_5deg': None
         }
 
-        # Search backward and forward from reference date
         ref = datetime.strptime(reference_date, '%Y-%m-%d')
 
-        # Find exact date first (search ±365 days)
+        def get_orb_for_date(date):
+            jd = self.em.get_julian_day(date.strftime('%Y-%m-%d'), '12:00', 'UTC')
+            transit_pos = self.em.get_planet_position(transit_planet, jd)
+            return self.calculate_aspect_orb(transit_pos['longitude'], natal_long, aspect_angle)
+
+        # Step 1: Find the current transit window boundaries (5° orb)
+        # Search backward from reference date to find when we entered 5° orb
+        prev_orb = get_orb_for_date(ref)
+        for days_back in range(1, 400):
+            check_date = ref - timedelta(days=days_back)
+            orb = get_orb_for_date(check_date)
+
+            # Found where orb crossed from >5 to <=5 (we entered)
+            if orb > 5 and prev_orb <= 5:
+                timeline['enter_5deg'] = (check_date + timedelta(days=1)).strftime('%Y-%m-%d')
+                break
+            prev_orb = orb
+
+        # Search forward from reference date to find when we exit 5° orb
+        prev_orb = get_orb_for_date(ref)
+        for days_forward in range(1, 400):
+            check_date = ref + timedelta(days=days_forward)
+            orb = get_orb_for_date(check_date)
+
+            # Found where orb crossed from <=5 to >5 (we're leaving)
+            if orb > 5 and prev_orb <= 5:
+                timeline['leave_5deg'] = check_date.strftime('%Y-%m-%d')
+                break
+            prev_orb = orb
+
+        # Step 2: Within the window, find 3° entry/exit (nearest to reference date)
+        # Search backward for most recent 3° entry
+        prev_orb = get_orb_for_date(ref)
+        for days_back in range(1, 400):
+            check_date = ref - timedelta(days=days_back)
+            orb = get_orb_for_date(check_date)
+
+            if orb > 3 and prev_orb <= 3:
+                timeline['enter_3deg'] = (check_date + timedelta(days=1)).strftime('%Y-%m-%d')
+                break
+            # Stop if we've left the 5° window
+            if orb > 5:
+                break
+            prev_orb = orb
+
+        # Search forward for next 3° exit
+        prev_orb = get_orb_for_date(ref)
+        for days_forward in range(1, 400):
+            check_date = ref + timedelta(days=days_forward)
+            orb = get_orb_for_date(check_date)
+
+            if orb > 3 and prev_orb <= 3:
+                timeline['leave_3deg'] = check_date.strftime('%Y-%m-%d')
+                break
+            if orb > 5:
+                break
+            prev_orb = orb
+
+        # Step 3: Within 3° window, find 1° entry/exit
+        # Search backward for most recent 1° entry
+        prev_orb = get_orb_for_date(ref)
+        for days_back in range(1, 200):
+            check_date = ref - timedelta(days=days_back)
+            orb = get_orb_for_date(check_date)
+
+            if orb > 1 and prev_orb <= 1:
+                timeline['enter_1deg'] = (check_date + timedelta(days=1)).strftime('%Y-%m-%d')
+                break
+            if orb > 3:
+                break
+            prev_orb = orb
+
+        # Search forward for next 1° exit
+        prev_orb = get_orb_for_date(ref)
+        for days_forward in range(1, 200):
+            check_date = ref + timedelta(days=days_forward)
+            orb = get_orb_for_date(check_date)
+
+            if orb > 1 and prev_orb <= 1:
+                timeline['leave_1deg'] = check_date.strftime('%Y-%m-%d')
+                break
+            if orb > 3:
+                break
+            prev_orb = orb
+
+        # Step 4: Find the nearest exact date to reference
+        # Search both directions to find the closest exact point
         exact_date, exact_orb = self.find_exact_aspect_date(
             chart_key, transit_planet, natal_point, aspect_name,
-            (ref - timedelta(days=365)).strftime('%Y-%m-%d'),
-            max_days=730
+            (ref - timedelta(days=60)).strftime('%Y-%m-%d'),
+            max_days=120  # ±60 days from reference
         )
 
         timeline['exact_date'] = exact_date
         timeline['exact_orb'] = exact_orb
-
-        if exact_date:
-            exact = datetime.strptime(exact_date, '%Y-%m-%d')
-
-            # Search backward from exact date for entry points
-            for days_back in range(1, 730):
-                check_date = exact - timedelta(days=days_back)
-                date_str = check_date.strftime('%Y-%m-%d')
-
-                jd = self.em.get_julian_day(date_str, '12:00', 'UTC')
-                transit_pos = self.em.get_planet_position(transit_planet, jd)
-                transit_long = transit_pos['longitude']
-
-                orb = self.calculate_aspect_orb(transit_long, natal_long, aspect_angle)
-
-                if orb <= 1 and not timeline['enter_1deg']:
-                    timeline['enter_1deg'] = date_str
-                if orb <= 3 and not timeline['enter_3deg']:
-                    timeline['enter_3deg'] = date_str
-                if orb <= 5 and not timeline['enter_5deg']:
-                    timeline['enter_5deg'] = date_str
-
-                if orb > 5:
-                    break
-
-            # Search forward from exact date for exit points
-            for days_forward in range(1, 730):
-                check_date = exact + timedelta(days=days_forward)
-                date_str = check_date.strftime('%Y-%m-%d')
-
-                jd = self.em.get_julian_day(date_str, '12:00', 'UTC')
-                transit_pos = self.em.get_planet_position(transit_planet, jd)
-                transit_long = transit_pos['longitude']
-
-                orb = self.calculate_aspect_orb(transit_long, natal_long, aspect_angle)
-
-                if orb > 1 and not timeline['leave_1deg']:
-                    timeline['leave_1deg'] = date_str
-                if orb > 3 and not timeline['leave_3deg']:
-                    timeline['leave_3deg'] = date_str
-                if orb > 5 and not timeline['leave_5deg']:
-                    timeline['leave_5deg'] = date_str
-
-                if orb > 5 and timeline['leave_5deg']:
-                    break
 
         return timeline
 
