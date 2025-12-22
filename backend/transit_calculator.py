@@ -321,54 +321,30 @@ class TransitCalculator:
             dt = datetime.combine(date.date() if hasattr(date, 'date') else date, datetime.min.time().replace(hour=12))
             return get_orb_for_datetime(dt)
 
-        def find_precise_crossing(start_date, threshold, direction='forward', crossing_type='exit'):
+        def find_precise_crossing(known_date_str, threshold, crossing_type='exit'):
             """
-            Find precise time when orb crosses a threshold.
+            Refine a known crossing date to hour:minute precision.
 
             Args:
-                start_date: Date to start searching from
+                known_date_str: Already-known date of crossing (YYYY-MM-DD)
                 threshold: Orb threshold (1, 3, or 5 degrees)
-                direction: 'forward' or 'backward'
                 crossing_type: 'entry' (orb decreasing past threshold) or 'exit' (orb increasing past threshold)
 
             Returns:
-                Datetime string with time (YYYY-MM-DD HH:MM) or None
+                Datetime string with time (YYYY-MM-DD HH:MM) or original date
             """
-            # First, find the day of crossing using daily search
-            dt = datetime.combine(start_date, datetime.min.time().replace(hour=12))
-            prev_orb = get_orb_for_datetime(dt)
-
-            step = timedelta(days=1) if direction == 'forward' else timedelta(days=-1)
-
-            crossing_day = None
-            for _ in range(200):
-                dt = dt + step
-                orb = get_orb_for_datetime(dt)
-
-                if crossing_type == 'exit':
-                    # Looking for orb to go from <= threshold to > threshold
-                    if orb > threshold and prev_orb <= threshold:
-                        crossing_day = dt if direction == 'forward' else dt - step
-                        break
-                else:  # entry
-                    # Looking for orb to go from > threshold to <= threshold
-                    if orb <= threshold and prev_orb > threshold:
-                        crossing_day = dt if direction == 'forward' else dt - step
-                        break
-
-                if orb > 5 and crossing_type == 'entry':
-                    break
-                prev_orb = orb
-
-            if not crossing_day:
+            if not known_date_str:
                 return None
 
-            # Now search hour by hour on the crossing day
-            start_hour = datetime.combine(crossing_day.date(), datetime.min.time())
-            prev_orb = get_orb_for_datetime(start_hour)
+            # Parse the known date
+            known_date = datetime.strptime(known_date_str, '%Y-%m-%d')
 
-            for hour in range(24):
-                check_time = start_hour + timedelta(hours=hour)
+            # Search hour by hour across the day (and day before/after for edge cases)
+            search_start = datetime.combine(known_date.date(), datetime.min.time()) - timedelta(hours=12)
+
+            prev_orb = get_orb_for_datetime(search_start)
+            for hour in range(48):  # Check 48 hours centered on the known date
+                check_time = search_start + timedelta(hours=hour)
                 orb = get_orb_for_datetime(check_time)
 
                 crossed = False
@@ -378,30 +354,30 @@ class TransitCalculator:
                     crossed = orb <= threshold and prev_orb > threshold
 
                 if crossed:
-                    # Refine to minute precision
-                    minute_start = check_time - timedelta(hours=1)
-                    prev_orb_min = get_orb_for_datetime(minute_start)
+                    # Refine to minute precision using binary search
+                    low = check_time - timedelta(hours=1)
+                    high = check_time
 
-                    for minute in range(60):
-                        check_minute = minute_start + timedelta(minutes=minute)
-                        orb_min = get_orb_for_datetime(check_minute)
+                    for _ in range(6):  # ~1 minute precision after 6 iterations
+                        mid = low + (high - low) / 2
+                        mid_orb = get_orb_for_datetime(mid)
 
-                        crossed_min = False
                         if crossing_type == 'exit':
-                            crossed_min = orb_min > threshold and prev_orb_min <= threshold
+                            if mid_orb > threshold:
+                                high = mid
+                            else:
+                                low = mid
                         else:
-                            crossed_min = orb_min <= threshold and prev_orb_min > threshold
+                            if mid_orb <= threshold:
+                                high = mid
+                            else:
+                                low = mid
 
-                        if crossed_min:
-                            return check_minute.strftime('%Y-%m-%d %H:%M')
-                        prev_orb_min = orb_min
-
-                    # Fallback to hour if minute search fails
-                    return check_time.strftime('%Y-%m-%d %H:%M')
+                    return high.strftime('%Y-%m-%d %H:%M')
                 prev_orb = orb
 
-            # Fallback to just the day
-            return crossing_day.strftime('%Y-%m-%d') + ' 12:00'
+            # Fallback to noon on the known date
+            return known_date_str + ' 12:00'
 
         # Step 1: Find the current transit window boundaries (5° orb)
         # Search backward from reference date to find when we entered 5° orb
@@ -496,68 +472,64 @@ class TransitCalculator:
 
         # Step 5: If precise mode, find exact times for all crossings
         if precise:
-            # Find precise entry times
+            # Find precise entry times (pass the already-known date string)
             if timeline['enter_5deg']:
-                entry_date = datetime.strptime(timeline['enter_5deg'], '%Y-%m-%d')
-                precise_time = find_precise_crossing(entry_date - timedelta(days=2), 5, 'forward', 'entry')
+                precise_time = find_precise_crossing(timeline['enter_5deg'], 5, 'entry')
                 if precise_time:
                     timeline['enter_5deg'] = precise_time
 
             if timeline['enter_3deg']:
-                entry_date = datetime.strptime(timeline['enter_3deg'], '%Y-%m-%d')
-                precise_time = find_precise_crossing(entry_date - timedelta(days=2), 3, 'forward', 'entry')
+                precise_time = find_precise_crossing(timeline['enter_3deg'], 3, 'entry')
                 if precise_time:
                     timeline['enter_3deg'] = precise_time
 
             if timeline['enter_1deg']:
-                entry_date = datetime.strptime(timeline['enter_1deg'], '%Y-%m-%d')
-                precise_time = find_precise_crossing(entry_date - timedelta(days=2), 1, 'forward', 'entry')
+                precise_time = find_precise_crossing(timeline['enter_1deg'], 1, 'entry')
                 if precise_time:
                     timeline['enter_1deg'] = precise_time
 
             # Find precise exit times
             if timeline['leave_1deg']:
-                exit_date = datetime.strptime(timeline['leave_1deg'], '%Y-%m-%d')
-                precise_time = find_precise_crossing(exit_date - timedelta(days=1), 1, 'forward', 'exit')
+                precise_time = find_precise_crossing(timeline['leave_1deg'], 1, 'exit')
                 if precise_time:
                     timeline['leave_1deg'] = precise_time
 
             if timeline['leave_3deg']:
-                exit_date = datetime.strptime(timeline['leave_3deg'], '%Y-%m-%d')
-                precise_time = find_precise_crossing(exit_date - timedelta(days=1), 3, 'forward', 'exit')
+                precise_time = find_precise_crossing(timeline['leave_3deg'], 3, 'exit')
                 if precise_time:
                     timeline['leave_3deg'] = precise_time
 
             if timeline['leave_5deg']:
-                exit_date = datetime.strptime(timeline['leave_5deg'], '%Y-%m-%d')
-                precise_time = find_precise_crossing(exit_date - timedelta(days=1), 5, 'forward', 'exit')
+                precise_time = find_precise_crossing(timeline['leave_5deg'], 5, 'exit')
                 if precise_time:
                     timeline['leave_5deg'] = precise_time
 
-            # Find precise exact time
+            # Find precise exact time using binary search
             if timeline['exact_date']:
                 exact_dt = datetime.strptime(timeline['exact_date'], '%Y-%m-%d')
-                # Search hour by hour for minimum orb
-                best_time = None
-                best_orb = 999
-                for hour in range(24):
-                    check_time = datetime.combine(exact_dt.date(), datetime.min.time()) + timedelta(hours=hour)
-                    orb = get_orb_for_datetime(check_time)
-                    if orb < best_orb:
-                        best_orb = orb
-                        best_time = check_time
+                # Binary search for minimum orb within the day
+                low = datetime.combine(exact_dt.date(), datetime.min.time())
+                high = low + timedelta(hours=24)
 
-                if best_time:
-                    # Refine to minute
-                    for minute in range(-30, 31):
-                        check_minute = best_time + timedelta(minutes=minute)
-                        orb = get_orb_for_datetime(check_minute)
-                        if orb < best_orb:
-                            best_orb = orb
-                            best_time = check_minute
+                for _ in range(10):  # ~1 minute precision
+                    mid = low + (high - low) / 2
+                    orb_low = get_orb_for_datetime(low)
+                    orb_mid = get_orb_for_datetime(mid)
+                    orb_high = get_orb_for_datetime(high)
 
-                    timeline['exact_datetime'] = best_time.strftime('%Y-%m-%d %H:%M')
-                    timeline['exact_orb'] = best_orb
+                    if orb_low < orb_mid:
+                        high = mid
+                    elif orb_high < orb_mid:
+                        low = mid
+                    else:
+                        # Minimum is around mid, narrow both sides
+                        low = low + (mid - low) / 2
+                        high = mid + (high - mid) / 2
+
+                best_time = low + (high - low) / 2
+                best_orb = get_orb_for_datetime(best_time)
+                timeline['exact_datetime'] = best_time.strftime('%Y-%m-%d %H:%M')
+                timeline['exact_orb'] = best_orb
 
         return timeline
 
