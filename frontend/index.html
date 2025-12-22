@@ -1101,8 +1101,7 @@
                 // Use the exact date from the aspect if available, otherwise use current date
                 const referenceDate = exactDate || document.getElementById('date-input').value;
 
-                const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${date}&precise=${preciseTiming}`);
-                const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${referenceDate}`);
+                const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${referenceDate}&precise=${preciseTiming}`);
 
                 if (!response.ok) throw new Error('Failed to load timeline');
 
