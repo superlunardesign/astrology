@@ -740,8 +740,11 @@
             // Create unique ID for this aspect card
             const aspectId = `aspect-${aspect.transit_planet.replace(/\s+/g, '-')}-${aspect.aspect.replace(/\s+/g, '-')}-${aspect.natal_point.replace(/\s+/g, '-')}`;
 
+            // Use exact date from aspect data if available
+            const exactDateForTimeline = aspect.exact_date || aspect.exact_datetime?.split(' ')[0] || '';
+
             return `
-                <div class="aspect-card ${aspect.significance.toLowerCase()}" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}')">
+                <div class="aspect-card ${aspect.significance.toLowerCase()}" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}', '${exactDateForTimeline}')">
                     <div class="aspect-header">
                         <div class="aspect-title">
                             ${aspect.transit_planet} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
@@ -1068,7 +1071,7 @@
             document.getElementById('error-container').innerHTML = '';
         }
 
-        async function toggleTimeline(aspectId, transitPlanet, natalPoint, aspectName) {
+        async function toggleTimeline(aspectId, transitPlanet, natalPoint, aspectName, exactDate) {
             event.stopPropagation();  // Prevent event bubbling
 
             const timelineContainer = document.getElementById(`${aspectId}-timeline`);
@@ -1095,9 +1098,11 @@
 
             try {
                 const chart = document.getElementById('chart-select').value;
-                const date = document.getElementById('date-input').value;
+                // Use the exact date from the aspect if available, otherwise use current date
+                const referenceDate = exactDate || document.getElementById('date-input').value;
 
                 const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${date}&precise=${preciseTiming}`);
+                const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${referenceDate}`);
 
                 if (!response.ok) throw new Error('Failed to load timeline');
 
