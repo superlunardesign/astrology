@@ -118,9 +118,11 @@ def get_aspect_timeline(chart_key, transit_planet, natal_point, aspect_name):
 
     Query params:
         reference_date: Reference date (default: today)
+        precise: If 'true', return exact times (hour/minute) for crossings
     """
     try:
         reference_date = request.args.get('reference_date', datetime.now().strftime('%Y-%m-%d'))
+        precise = request.args.get('precise', 'false').lower() == 'true'
 
         # Validate date
         try:
@@ -129,12 +131,14 @@ def get_aspect_timeline(chart_key, transit_planet, natal_point, aspect_name):
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
         timeline = tc.calculate_aspect_timeline(
-            chart_key, transit_planet, natal_point, aspect_name, reference_date
+            chart_key, transit_planet, natal_point, aspect_name, reference_date, precise=precise
         )
 
-        # Calculate days remaining
+        # Calculate days remaining (handle both date and datetime formats)
         if timeline['leave_3deg']:
-            leave_date = datetime.strptime(timeline['leave_3deg'], '%Y-%m-%d')
+            leave_str = timeline['leave_3deg']
+            # Handle datetime format (YYYY-MM-DD HH:MM) or date format (YYYY-MM-DD)
+            leave_date = datetime.strptime(leave_str[:10], '%Y-%m-%d')
             today = datetime.strptime(reference_date, '%Y-%m-%d')
             days_remaining = (leave_date - today).days
             timeline['days_remaining'] = days_remaining

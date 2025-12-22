@@ -441,6 +441,13 @@
                     Show Entry Dates
                 </label>
             </div>
+
+            <div class="control-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="precise-timing" style="width: 18px; height: 18px; cursor: pointer;">
+                    Precise Timing
+                </label>
+            </div>
         </div>
 
         <div id="error-container"></div>
@@ -1066,6 +1073,7 @@
 
             const timelineContainer = document.getElementById(`${aspectId}-timeline`);
             const isExpanded = timelineContainer.classList.contains('expanded');
+            const preciseTiming = document.getElementById('precise-timing').checked;
 
             if (isExpanded) {
                 // Collapse timeline
@@ -1076,8 +1084,9 @@
             // Expand and load timeline
             timelineContainer.classList.add('expanded');
 
-            // Check if already loaded
-            if (timelineContainer.dataset.loaded === 'true') {
+            // Check if already loaded with same precision setting
+            const loadedPrecision = timelineContainer.dataset.loadedPrecision;
+            if (timelineContainer.dataset.loaded === 'true' && loadedPrecision === String(preciseTiming)) {
                 return;
             }
 
@@ -1088,13 +1097,14 @@
                 const chart = document.getElementById('chart-select').value;
                 const date = document.getElementById('date-input').value;
 
-                const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${date}`);
+                const response = await fetch(`${API_URL}/api/timeline/${chart}/${encodeURIComponent(transitPlanet)}/${encodeURIComponent(natalPoint)}/${encodeURIComponent(aspectName)}?reference_date=${date}&precise=${preciseTiming}`);
 
                 if (!response.ok) throw new Error('Failed to load timeline');
 
                 const data = await response.json();
                 renderTimeline(timelineContainer, data);
                 timelineContainer.dataset.loaded = 'true';
+                timelineContainer.dataset.loadedPrecision = String(preciseTiming);
             } catch (error) {
                 console.error('Timeline error:', error);
                 timelineContainer.innerHTML = '<div class="timeline-loading" style="color: #e74c3c;">Failed to load timeline</div>';
@@ -1129,11 +1139,11 @@
                 });
             }
 
-            // Exact point
-            if (timeline.exact_date) {
+            // Exact point (use exact_datetime if available from precise mode)
+            if (timeline.exact_datetime || timeline.exact_date) {
                 timelineItems.push({
                     label: 'EXACT',
-                    date: timeline.exact_date,
+                    date: timeline.exact_datetime || timeline.exact_date,
                     type: 'exact',
                     orb: timeline.exact_orb
                 });
@@ -1162,11 +1172,30 @@
                 });
             }
 
-            let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline</h4>';
+            let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline (PST)</h4>';
 
             timelineItems.forEach(item => {
                 const markerClass = item.type === 'exact' ? 'timeline-marker exact' : 'timeline-marker';
-                const dateFormatted = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                // Check if date includes time (format: YYYY-MM-DD HH:MM)
+                const hasTime = item.date && item.date.length > 10;
+                let dateFormatted;
+
+                if (hasTime) {
+                    // Parse datetime string (YYYY-MM-DD HH:MM)
+                    const [datePart, timePart] = item.date.split(' ');
+                    const dateObj = new Date(datePart + 'T' + timePart + ':00');
+                    const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const [hours, minutes] = timePart.split(':');
+                    const h = parseInt(hours);
+                    const suffix = h >= 12 ? 'pm' : 'am';
+                    const h12 = h % 12 || 12;
+                    const timeStr = h12 + ':' + minutes + suffix;
+                    dateFormatted = dateStr + ' at ' + timeStr;
+                } else {
+                    dateFormatted = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+
                 const orbInfo = item.orb !== undefined ? ` (${item.orb.toFixed(4)}°)` : '';
 
                 html += `
