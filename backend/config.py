@@ -141,6 +141,34 @@ NATAL_POSITIONS = {
             'Descendant': zodiac_to_longitude(19, 48, 35.68, 'Taurus'),    # Opposite of Ascendant
             'IC': zodiac_to_longitude(6, 1, 53.69, 'Pisces'),          # Opposite of MC
         }
+    },
+    'superlunar': {
+        'name': 'Superlunar Design Co.',
+        'birth_data': {
+            'date': '2022-03-01',
+            'time': '17:07',
+            'location': 'Monterey, California'
+        },
+        'positions': {
+            # Positions from Time Nomad
+            'Sun': zodiac_to_longitude(11, 25, 19, 'Pisces'),          # 11°25′19″ Pisces
+            'Moon': zodiac_to_longitude(2, 29, 21, 'Pisces'),          # 2°29′21″ Pisces
+            'Mercury': zodiac_to_longitude(18, 5, 5, 'Aquarius'),      # 18°05′05″ Aquarius
+            'Venus': zodiac_to_longitude(26, 26, 6, 'Capricorn'),      # 26°26′06″ Capricorn
+            'Mars': zodiac_to_longitude(26, 51, 13, 'Capricorn'),      # 26°51′13″ Capricorn
+            'Jupiter': zodiac_to_longitude(14, 7, 2, 'Pisces'),        # 14°07′02″ Pisces
+            'Saturn': zodiac_to_longitude(18, 55, 6, 'Aquarius'),      # 18°55′06″ Aquarius
+            'Uranus': zodiac_to_longitude(11, 34, 56, 'Taurus'),       # 11°34′56″ Taurus
+            'Neptune': zodiac_to_longitude(22, 26, 27, 'Pisces'),      # 22°26′27″ Pisces
+            'Pluto': zodiac_to_longitude(27, 48, 0, 'Capricorn'),      # 27°48′00″ Capricorn
+            'North Node': zodiac_to_longitude(25, 32, 41, 'Taurus'),   # 25°32′41″ Taurus
+            'South Node': zodiac_to_longitude(25, 32, 41, 'Scorpio'),  # 25°32′41″ Scorpio
+            'Chiron': zodiac_to_longitude(0, 0, 0, 'Aries'),           # Placeholder - Chiron not provided
+            'Ascendant': zodiac_to_longitude(1, 0, 31, 'Virgo'),       # 1°00′31″ Virgo
+            'MC': zodiac_to_longitude(26, 57, 15, 'Taurus'),           # 26°57′15″ Taurus
+            'Descendant': zodiac_to_longitude(1, 0, 31, 'Pisces'),     # 1°00′31″ Pisces
+            'IC': zodiac_to_longitude(26, 57, 15, 'Scorpio'),          # 26°57′15″ Scorpio
+        }
     }
 }
 
@@ -195,6 +223,19 @@ NATAL_CHARTS = {
             'country': 'USA',
             'latitude': 47.6062,
             'longitude': -122.3321,
+            'timezone': 'America/Los_Angeles'
+        }
+    },
+    'superlunar': {
+        'name': 'Superlunar Design Co.',
+        'date': '2022-03-01',
+        'time': '17:07',
+        'location': {
+            'city': 'Monterey',
+            'state': 'California',
+            'country': 'USA',
+            'latitude': 36.6002,
+            'longitude': -121.8947,
             'timezone': 'America/Los_Angeles'
         }
     }
