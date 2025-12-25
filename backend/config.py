@@ -169,6 +169,34 @@ NATAL_POSITIONS = {
             'Descendant': zodiac_to_longitude(1, 0, 31, 'Pisces'),     # 1°00′31″ Pisces
             'IC': zodiac_to_longitude(26, 57, 15, 'Scorpio'),          # 26°57′15″ Scorpio
         }
+    },
+    'jarrett': {
+        'name': 'Jarrett',
+        'birth_data': {
+            'date': '1998-03-23',
+            'time': '17:54',
+            'location': 'Indianapolis, Indiana'
+        },
+        'positions': {
+            # Positions from Time Nomad
+            'Sun': zodiac_to_longitude(3, 6, 13.07, 'Aries'),          # 3°06′13.07″ Aries
+            'Moon': zodiac_to_longitude(5, 41, 31.61, 'Aquarius'),     # 5°41′31.61″ Aquarius
+            'Mercury': zodiac_to_longitude(20, 32, 14.09, 'Aries'),    # 20°32′14.09″ Aries
+            'Venus': zodiac_to_longitude(16, 41, 7.37, 'Aquarius'),    # 16°41′7.37″ Aquarius
+            'Mars': zodiac_to_longitude(14, 49, 45.03, 'Aries'),       # 14°49′45.03″ Aries
+            'Jupiter': zodiac_to_longitude(11, 20, 21.78, 'Pisces'),   # 11°20′21.78″ Pisces
+            'Saturn': zodiac_to_longitude(20, 46, 22.21, 'Aries'),     # 20°46′22.21″ Aries
+            'Uranus': zodiac_to_longitude(11, 33, 26.03, 'Aquarius'),  # 11°33′26.03″ Aquarius
+            'Neptune': zodiac_to_longitude(1, 41, 54.80, 'Aquarius'),  # 1°41′54.80″ Aquarius
+            'Pluto': zodiac_to_longitude(8, 1, 9.33, 'Sagittarius'),   # 8°01′9.33″ Sagittarius
+            'North Node': zodiac_to_longitude(10, 22, 27.96, 'Virgo'), # 10°22′27.96″ Virgo
+            'South Node': zodiac_to_longitude(10, 22, 27.96, 'Pisces'), # 10°22′27.96″ Pisces
+            'Chiron': zodiac_to_longitude(0, 0, 0, 'Aries'),           # Placeholder - Chiron not provided
+            'Ascendant': zodiac_to_longitude(20, 50, 51.03, 'Virgo'),  # 20°50′51.03″ Virgo
+            'MC': zodiac_to_longitude(19, 29, 18.61, 'Gemini'),        # 19°29′18.61″ Gemini
+            'Descendant': zodiac_to_longitude(20, 50, 51.03, 'Pisces'), # 20°50′51.03″ Pisces
+            'IC': zodiac_to_longitude(19, 29, 18.61, 'Sagittarius'),   # 19°29′18.61″ Sagittarius
+        }
     }
 }
 
@@ -237,6 +265,19 @@ NATAL_CHARTS = {
             'latitude': 36.6002,
             'longitude': -121.8947,
             'timezone': 'America/Los_Angeles'
+        }
+    },
+    'jarrett': {
+        'name': 'Jarrett',
+        'date': '1998-03-23',
+        'time': '17:54',
+        'location': {
+            'city': 'Indianapolis',
+            'state': 'Indiana',
+            'country': 'USA',
+            'latitude': 39.7684,
+            'longitude': -86.1581,
+            'timezone': 'America/Indiana/Indianapolis'
         }
     }
 }
