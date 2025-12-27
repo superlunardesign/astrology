@@ -240,7 +240,7 @@ def compare_charts():
         date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
         time_str = request.args.get('time', '12:00')
         timezone = request.args.get('timezone', 'America/Los_Angeles')
-        charts_str = request.args.get('charts', 'christina,julian,superlunar,davison')
+        charts_str = request.args.get('charts', 'christina,julian,davison')
         chart_keys = charts_str.split(',')
 
         results = {}
@@ -356,7 +356,7 @@ if __name__ == '__main__':
     print("  GET /api/dashboard/<chart_key>?date=YYYY-MM-DD")
     print("  GET /api/timeline/<chart_key>/<transit_planet>/<natal_point>/<aspect_name>")
     print("  GET /api/scan/<chart_key>?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD")
-    print("  GET /api/compare?date=YYYY-MM-DD&charts=christina,julian,superlunar,davison")
+    print("  GET /api/compare?date=YYYY-MM-DD&charts=christina,julian,davison")
     print("  GET /api/date-range/<chart_key>?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD")
     print("="*80)
 
