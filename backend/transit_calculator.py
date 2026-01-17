@@ -1103,15 +1103,31 @@ class TransitCalculator:
         }
 
     def _get_moon_daily_info(self, chart_key, date_str, timezone='America/Los_Angeles'):
-        """Get Moon information for a specific day including aspects with times"""
+        """Get Moon information for a specific day including aspects with times (optimized)"""
         chart = self.ncm.get_chart(chart_key)
 
-        # Get Moon position at start of day and end of day to find sign changes
-        start_pos = self.get_transiting_positions(date_str, '00:00', timezone)
-        end_pos = self.get_transiting_positions(date_str, '23:59', timezone)
+        # Pre-calculate Moon positions for the entire day (every 2 hours for speed)
+        moon_positions = []
+        for hour in range(0, 25, 2):  # 0, 2, 4, ... 24
+            check_hour = min(hour, 23)
+            check_date = date_str
+            if hour == 24:
+                next_day = datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=1)
+                check_date = next_day.strftime('%Y-%m-%d')
+                check_hour = 0
 
-        moon_start_long = start_pos['Moon']['longitude']
-        moon_end_long = end_pos['Moon']['longitude']
+            time_str = f"{check_hour:02d}:00"
+            jd = self.em.get_julian_day(check_date, time_str, timezone)
+            moon_pos = self.em.get_planet_position('Moon', jd)
+            moon_positions.append({
+                'hour': hour,
+                'longitude': moon_pos['longitude'],
+                'date': check_date,
+                'time': time_str
+            })
+
+        moon_start_long = moon_positions[0]['longitude']
+        moon_end_long = moon_positions[-1]['longitude']
 
         moon_start_sign = self.get_sign_from_longitude(moon_start_long)
         moon_end_sign = self.get_sign_from_longitude(moon_end_long)
@@ -1121,10 +1137,19 @@ class TransitCalculator:
         # Check for sign change
         sign_change = None
         if moon_start_sign != moon_end_sign:
-            # Binary search for sign change time
-            sign_change = self._find_moon_sign_change(date_str, moon_start_sign, timezone)
+            # Find approximate hour of sign change
+            for i in range(1, len(moon_positions)):
+                if self.get_sign_from_longitude(moon_positions[i]['longitude']) != moon_start_sign:
+                    # Sign changed between positions[i-1] and positions[i]
+                    change_hour = moon_positions[i-1]['hour']
+                    new_sign = self.get_sign_from_longitude(moon_positions[i]['longitude'])
+                    sign_change = {
+                        'time': f"{change_hour:02d}:00",
+                        'new_sign': new_sign
+                    }
+                    break
 
-        # Find Moon aspects throughout the day
+        # Find Moon aspects - optimized single pass
         moon_aspects = []
         natal_points = list(PLANETS.keys()) + ['Ascendant', 'MC', 'Descendant', 'IC']
 
@@ -1135,18 +1160,25 @@ class TransitCalculator:
             natal_long = chart['positions'][natal_point]['longitude']
 
             for aspect_name, aspect_data in ASPECTS.items():
-                # Find if/when Moon makes this aspect today
-                exact_time = self._find_moon_aspect_time(
-                    date_str, natal_long, aspect_data['angle'], timezone
-                )
+                aspect_angle = aspect_data['angle']
 
-                if exact_time:
-                    moon_aspects.append({
-                        'time': exact_time,
-                        'time_12hr': self.format_time_12hr(exact_time),
-                        'natal_point': natal_point,
-                        'aspect_word': self.get_aspect_word(aspect_name)
-                    })
+                # Check if aspect occurs during the day using pre-calculated positions
+                prev_orb = None
+                for i, pos in enumerate(moon_positions):
+                    orb = self.calculate_aspect_orb(pos['longitude'], natal_long, aspect_angle)
+
+                    if prev_orb is not None and orb > prev_orb and prev_orb < 2.0:
+                        # Found a minimum - aspect went exact between i-1 and i
+                        approx_hour = moon_positions[i-1]['hour']
+                        moon_aspects.append({
+                            'time': f"{approx_hour:02d}:00",
+                            'time_12hr': self.format_time_12hr(f"{approx_hour:02d}:00"),
+                            'natal_point': natal_point,
+                            'aspect_word': self.get_aspect_word(aspect_name)
+                        })
+                        break
+
+                    prev_orb = orb
 
         # Sort aspects by time
         moon_aspects.sort(key=lambda x: x['time'])
@@ -1169,89 +1201,6 @@ class TransitCalculator:
             'sign_change': sign_change,
             'aspects': moon_aspects
         }
-
-    def _find_moon_sign_change(self, date_str, start_sign, timezone):
-        """Find exact time when Moon changes sign during the day"""
-        signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
-                 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
-
-        # Binary search through the day
-        for hour in range(24):
-            time_str = f"{hour:02d}:00"
-            pos = self.get_transiting_positions(date_str, time_str, timezone)
-            current_sign = self.get_sign_from_longitude(pos['Moon']['longitude'])
-
-            if current_sign != start_sign:
-                # Sign changed sometime in the previous hour - refine to 5-min intervals
-                for minute in range(0, 60, 5):
-                    prev_hour = hour - 1 if hour > 0 else 0
-                    check_time = f"{prev_hour:02d}:{minute:02d}"
-                    pos = self.get_transiting_positions(date_str, check_time, timezone)
-                    check_sign = self.get_sign_from_longitude(pos['Moon']['longitude'])
-
-                    if check_sign != start_sign:
-                        return {
-                            'time': check_time,
-                            'new_sign': check_sign
-                        }
-
-                # Fallback
-                return {
-                    'time': f"{hour:02d}:00",
-                    'new_sign': current_sign
-                }
-
-        return None
-
-    def _find_moon_aspect_time(self, date_str, natal_long, aspect_angle, timezone):
-        """Find if/when Moon makes an exact aspect to a natal point on this day"""
-        # Check every hour, then refine
-        prev_orb = None
-        crossing_hour = None
-
-        for hour in range(25):  # 0-24 to catch midnight crossings
-            time_str = f"{min(hour, 23):02d}:00"
-            check_date = date_str
-            if hour == 24:
-                # Check first hour of next day
-                next_day = datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=1)
-                check_date = next_day.strftime('%Y-%m-%d')
-                time_str = "00:00"
-
-            pos = self.get_transiting_positions(check_date, time_str, timezone)
-            moon_long = pos['Moon']['longitude']
-            orb = self.calculate_aspect_orb(moon_long, natal_long, aspect_angle)
-
-            if prev_orb is not None:
-                # Check if we crossed through minimum (exact aspect)
-                if orb > prev_orb and prev_orb < 1.0:
-                    crossing_hour = hour - 1
-                    break
-
-            prev_orb = orb
-
-        if crossing_hour is None:
-            return None
-
-        # Refine to 5-minute intervals
-        best_orb = float('inf')
-        best_time = None
-
-        for minute in range(0, 60, 5):
-            time_str = f"{crossing_hour:02d}:{minute:02d}"
-            pos = self.get_transiting_positions(date_str, time_str, timezone)
-            moon_long = pos['Moon']['longitude']
-            orb = self.calculate_aspect_orb(moon_long, natal_long, aspect_angle)
-
-            if orb < best_orb:
-                best_orb = orb
-                best_time = time_str
-
-        # Only return if aspect is within 1 degree (Moon moves fast)
-        if best_orb <= 1.0:
-            return best_time
-
-        return None
 
     def _generate_journal_plain_text(self, chart_name, start_date, days,
                                       planet_positions, natal_activated,
