@@ -275,6 +275,86 @@ def compare_charts():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/journal/<chart_key>', methods=['GET'])
+def get_transit_journal(chart_key):
+    """
+    Get transit journal for a chart over a date range
+
+    Query params:
+        start_date: Start date (default: today)
+        days: Number of days to include (default: 7, max: 14)
+        timezone: Timezone string (default: America/Los_Angeles)
+    """
+    try:
+        start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
+        days = int(request.args.get('days', 7))
+        timezone = request.args.get('timezone', 'America/Los_Angeles')
+
+        # Cap days at 14
+        days = min(max(days, 1), 14)
+
+        # Validate date
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+        journal = tc.generate_transit_journal(chart_key, start_date, days, timezone)
+
+        return jsonify(journal)
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/journal-compare', methods=['GET'])
+def get_journal_compare():
+    """
+    Get combined transit journals for multiple charts
+
+    Query params:
+        start_date: Start date (default: today)
+        days: Number of days (default: 7, max: 14)
+        charts: Comma-separated chart keys (default: christina,julian,davison)
+        timezone: Timezone string (default: America/Los_Angeles)
+    """
+    try:
+        start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
+        days = int(request.args.get('days', 7))
+        charts_str = request.args.get('charts', 'christina,julian,davison')
+        timezone = request.args.get('timezone', 'America/Los_Angeles')
+
+        chart_keys = [k.strip() for k in charts_str.split(',')]
+        days = min(max(days, 1), 14)
+
+        # Validate date
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+        journals = {}
+        combined_plain_text = []
+
+        for chart_key in chart_keys:
+            journal = tc.generate_transit_journal(chart_key, start_date, days, timezone)
+            journals[chart_key] = journal
+            combined_plain_text.append(journal['plain_text'])
+            combined_plain_text.append("\n" + "=" * 60 + "\n")
+
+        return jsonify({
+            'start_date': start_date,
+            'days': days,
+            'charts': journals,
+            'combined_plain_text': "\n".join(combined_plain_text)
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/date-range/<chart_key>', methods=['GET'])
 def get_date_range_summary(chart_key):
     """
@@ -357,6 +437,8 @@ if __name__ == '__main__':
     print("  GET /api/timeline/<chart_key>/<transit_planet>/<natal_point>/<aspect_name>")
     print("  GET /api/scan/<chart_key>?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD")
     print("  GET /api/compare?date=YYYY-MM-DD&charts=christina,julian,davison")
+    print("  GET /api/journal/<chart_key>?start_date=YYYY-MM-DD&days=7")
+    print("  GET /api/journal-compare?start_date=YYYY-MM-DD&days=7&charts=christina,julian,davison")
     print("  GET /api/date-range/<chart_key>?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD")
     print("="*80)
 

@@ -906,6 +906,471 @@ class TransitCalculator:
 
         return upcoming
 
+    def generate_transit_journal(self, chart_key, start_date, days=7, timezone='America/Los_Angeles'):
+        """
+        Generate a comprehensive transit journal for a given date range
+
+        Args:
+            chart_key: Chart identifier
+            start_date: Start date in YYYY-MM-DD format
+            days: Number of days to include (default 7, max 14)
+            timezone: Timezone string
+
+        Returns:
+            Dictionary with journal data and plain text output
+        """
+        days = min(days, 14)  # Cap at 14 days
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+
+        # Get chart info
+        chart = self.ncm.get_chart(chart_key)
+        chart_name = chart['name']
+
+        # Get current planetary positions (at start date noon)
+        transit_positions = self.get_transiting_positions(start_date, '12:00', timezone)
+
+        # Build planetary positions section
+        planet_positions = {}
+        for planet_name in PLANETS.keys():
+            pos = transit_positions[planet_name]
+            longitude = pos['longitude']
+            sign = self.get_sign_from_longitude(longitude)
+            degree = int(longitude % 30)
+            house = self.ncm.get_house_for_longitude(chart_key, longitude)
+            planet_positions[planet_name] = {
+                'longitude': longitude,
+                'sign': sign,
+                'degree': degree,
+                'house': house
+            }
+
+        # Collect all unique transits across the date range
+        # We'll track: transit_planet, natal_point, aspect_name -> timeline info
+        all_transits = {}
+        natal_points_activated = set()
+
+        for day_offset in range(days):
+            check_date = start + timedelta(days=day_offset)
+            date_str = check_date.strftime('%Y-%m-%d')
+
+            # Get aspects for this day (excluding Moon for now - handle separately)
+            aspects = self.find_aspects(chart_key, date_str, max_orb=3, time_str='12:00', timezone=timezone)
+
+            for aspect in aspects:
+                if aspect['transit_planet'] == 'Moon':
+                    continue  # Handle Moon separately
+
+                key = (aspect['transit_planet'], aspect['natal_point'], aspect['aspect'])
+                natal_points_activated.add(aspect['natal_point'])
+
+                if key not in all_transits:
+                    # Calculate timeline for this transit
+                    timeline = self.calculate_aspect_timeline(
+                        chart_key,
+                        aspect['transit_planet'],
+                        aspect['natal_point'],
+                        aspect['aspect'],
+                        date_str,
+                        precise=False
+                    )
+
+                    significance, is_challenging = self.rate_aspect_significance(
+                        aspect['transit_planet'],
+                        aspect['natal_point'],
+                        aspect['aspect']
+                    )
+
+                    all_transits[key] = {
+                        'transit_planet': aspect['transit_planet'],
+                        'natal_point': aspect['natal_point'],
+                        'aspect': aspect['aspect'],
+                        'aspect_word': self.get_aspect_word(aspect['aspect']),
+                        'enter_3deg': timeline.get('enter_3deg'),
+                        'exact_date': timeline.get('exact_date'),
+                        'leave_3deg': timeline.get('leave_3deg'),
+                        'significance': significance,
+                        'is_challenging': is_challenging
+                    }
+
+        # Build natal points being activated with their positions
+        natal_activated_info = {}
+        for natal_point in natal_points_activated:
+            if natal_point in chart['positions']:
+                longitude = chart['positions'][natal_point]['longitude']
+                sign = self.get_sign_from_longitude(longitude)
+                degree = int(longitude % 30)
+                house = self.ncm.get_house_for_longitude(chart_key, longitude)
+                natal_activated_info[natal_point] = {
+                    'longitude': longitude,
+                    'sign': sign,
+                    'degree': degree,
+                    'house': house
+                }
+
+        # Generate daily journal entries
+        daily_entries = []
+
+        for day_offset in range(days):
+            check_date = start + timedelta(days=day_offset)
+            date_str = check_date.strftime('%Y-%m-%d')
+            day_name = check_date.strftime('%A').upper()
+            date_display = check_date.strftime('%B %d').upper()
+
+            entry = {
+                'date': date_str,
+                'day_name': day_name,
+                'date_display': date_display,
+                'moon': self._get_moon_daily_info(chart_key, date_str, timezone),
+                'events': [],  # Transits entering, going exact, or leaving
+                'active_transits': []  # Ongoing transits with current orb
+            }
+
+            # Get all aspects for this day
+            aspects = self.find_aspects(chart_key, date_str, max_orb=3, time_str='12:00', timezone=timezone)
+
+            for aspect in aspects:
+                if aspect['transit_planet'] == 'Moon':
+                    continue
+
+                key = (aspect['transit_planet'], aspect['natal_point'], aspect['aspect'])
+                transit_info = all_transits.get(key)
+
+                if not transit_info:
+                    continue
+
+                # Check for events on this day
+                is_event = False
+                event_type = None
+
+                if transit_info['enter_3deg'] and transit_info['enter_3deg'][:10] == date_str:
+                    is_event = True
+                    event_type = 'enters orb'
+                elif transit_info['exact_date'] and transit_info['exact_date'][:10] == date_str:
+                    is_event = True
+                    event_type = 'EXACT'
+                elif transit_info['leave_3deg'] and transit_info['leave_3deg'][:10] == date_str:
+                    is_event = True
+                    event_type = 'exits orb'
+
+                # Format orb
+                orb_deg = int(aspect['orb'])
+                orb_min = int((aspect['orb'] % 1) * 60)
+                orb_str = f"{orb_deg}°{orb_min:02d}'"
+
+                direction = 'approaching' if aspect['is_applying'] else 'separating'
+
+                transit_entry = {
+                    'transit_planet': aspect['transit_planet'],
+                    'natal_point': aspect['natal_point'],
+                    'aspect_word': self.get_aspect_word(aspect['aspect']),
+                    'orb': orb_str,
+                    'orb_value': aspect['orb'],
+                    'direction': direction,
+                    'significance': transit_info['significance'],
+                    'is_challenging': transit_info['is_challenging'],
+                    'exact_date': transit_info['exact_date']
+                }
+
+                if is_event:
+                    transit_entry['event_type'] = event_type
+                    entry['events'].append(transit_entry)
+                else:
+                    entry['active_transits'].append(transit_entry)
+
+            # Sort events and active transits
+            entry['events'].sort(key=lambda x: x['orb_value'])
+            entry['active_transits'].sort(key=lambda x: x['orb_value'])
+
+            daily_entries.append(entry)
+
+        # Generate plain text output
+        plain_text = self._generate_journal_plain_text(
+            chart_name, start_date, days, planet_positions,
+            natal_activated_info, all_transits, daily_entries
+        )
+
+        return {
+            'chart_key': chart_key,
+            'chart_name': chart_name,
+            'start_date': start_date,
+            'end_date': (start + timedelta(days=days-1)).strftime('%Y-%m-%d'),
+            'days': days,
+            'planet_positions': planet_positions,
+            'natal_activated': natal_activated_info,
+            'transit_overview': list(all_transits.values()),
+            'daily_entries': daily_entries,
+            'plain_text': plain_text
+        }
+
+    def _get_moon_daily_info(self, chart_key, date_str, timezone='America/Los_Angeles'):
+        """Get Moon information for a specific day including aspects with times"""
+        chart = self.ncm.get_chart(chart_key)
+
+        # Get Moon position at start of day and end of day to find sign changes
+        start_pos = self.get_transiting_positions(date_str, '00:00', timezone)
+        end_pos = self.get_transiting_positions(date_str, '23:59', timezone)
+
+        moon_start_long = start_pos['Moon']['longitude']
+        moon_end_long = end_pos['Moon']['longitude']
+
+        moon_start_sign = self.get_sign_from_longitude(moon_start_long)
+        moon_end_sign = self.get_sign_from_longitude(moon_end_long)
+
+        moon_house = self.ncm.get_house_for_longitude(chart_key, moon_start_long)
+
+        # Check for sign change
+        sign_change = None
+        if moon_start_sign != moon_end_sign:
+            # Binary search for sign change time
+            sign_change = self._find_moon_sign_change(date_str, moon_start_sign, timezone)
+
+        # Find Moon aspects throughout the day
+        moon_aspects = []
+        natal_points = list(PLANETS.keys()) + ['Ascendant', 'MC', 'Descendant', 'IC']
+
+        for natal_point in natal_points:
+            if natal_point not in chart['positions']:
+                continue
+
+            natal_long = chart['positions'][natal_point]['longitude']
+
+            for aspect_name, aspect_data in ASPECTS.items():
+                # Find if/when Moon makes this aspect today
+                exact_time = self._find_moon_aspect_time(
+                    date_str, natal_long, aspect_data['angle'], timezone
+                )
+
+                if exact_time:
+                    moon_aspects.append({
+                        'time': exact_time,
+                        'time_12hr': self.format_time_12hr(exact_time),
+                        'natal_point': natal_point,
+                        'aspect_word': self.get_aspect_word(aspect_name)
+                    })
+
+        # Sort aspects by time
+        moon_aspects.sort(key=lambda x: x['time'])
+
+        # Add sign change to the list if it happens
+        if sign_change:
+            moon_aspects.append({
+                'time': sign_change['time'],
+                'time_12hr': self.format_time_12hr(sign_change['time']),
+                'natal_point': None,
+                'aspect_word': None,
+                'sign_change': sign_change['new_sign']
+            })
+            moon_aspects.sort(key=lambda x: x['time'])
+
+        return {
+            'sign': moon_start_sign,
+            'end_sign': moon_end_sign if moon_start_sign != moon_end_sign else None,
+            'house': moon_house,
+            'sign_change': sign_change,
+            'aspects': moon_aspects
+        }
+
+    def _find_moon_sign_change(self, date_str, start_sign, timezone):
+        """Find exact time when Moon changes sign during the day"""
+        signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+                 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
+
+        # Binary search through the day
+        for hour in range(24):
+            time_str = f"{hour:02d}:00"
+            pos = self.get_transiting_positions(date_str, time_str, timezone)
+            current_sign = self.get_sign_from_longitude(pos['Moon']['longitude'])
+
+            if current_sign != start_sign:
+                # Sign changed sometime in the previous hour - refine to 5-min intervals
+                for minute in range(0, 60, 5):
+                    prev_hour = hour - 1 if hour > 0 else 0
+                    check_time = f"{prev_hour:02d}:{minute:02d}"
+                    pos = self.get_transiting_positions(date_str, check_time, timezone)
+                    check_sign = self.get_sign_from_longitude(pos['Moon']['longitude'])
+
+                    if check_sign != start_sign:
+                        return {
+                            'time': check_time,
+                            'new_sign': check_sign
+                        }
+
+                # Fallback
+                return {
+                    'time': f"{hour:02d}:00",
+                    'new_sign': current_sign
+                }
+
+        return None
+
+    def _find_moon_aspect_time(self, date_str, natal_long, aspect_angle, timezone):
+        """Find if/when Moon makes an exact aspect to a natal point on this day"""
+        # Check every hour, then refine
+        prev_orb = None
+        crossing_hour = None
+
+        for hour in range(25):  # 0-24 to catch midnight crossings
+            time_str = f"{min(hour, 23):02d}:00"
+            check_date = date_str
+            if hour == 24:
+                # Check first hour of next day
+                next_day = datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=1)
+                check_date = next_day.strftime('%Y-%m-%d')
+                time_str = "00:00"
+
+            pos = self.get_transiting_positions(check_date, time_str, timezone)
+            moon_long = pos['Moon']['longitude']
+            orb = self.calculate_aspect_orb(moon_long, natal_long, aspect_angle)
+
+            if prev_orb is not None:
+                # Check if we crossed through minimum (exact aspect)
+                if orb > prev_orb and prev_orb < 1.0:
+                    crossing_hour = hour - 1
+                    break
+
+            prev_orb = orb
+
+        if crossing_hour is None:
+            return None
+
+        # Refine to 5-minute intervals
+        best_orb = float('inf')
+        best_time = None
+
+        for minute in range(0, 60, 5):
+            time_str = f"{crossing_hour:02d}:{minute:02d}"
+            pos = self.get_transiting_positions(date_str, time_str, timezone)
+            moon_long = pos['Moon']['longitude']
+            orb = self.calculate_aspect_orb(moon_long, natal_long, aspect_angle)
+
+            if orb < best_orb:
+                best_orb = orb
+                best_time = time_str
+
+        # Only return if aspect is within 1 degree (Moon moves fast)
+        if best_orb <= 1.0:
+            return best_time
+
+        return None
+
+    def _generate_journal_plain_text(self, chart_name, start_date, days,
+                                      planet_positions, natal_activated,
+                                      all_transits, daily_entries):
+        """Generate plain text version of the transit journal"""
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = start + timedelta(days=days-1)
+
+        lines = []
+
+        # Header
+        lines.append(f"TRANSIT JOURNAL - {chart_name}")
+        lines.append(f"{start.strftime('%B %d')} - {end.strftime('%B %d, %Y')}")
+        lines.append("")
+        lines.append("=" * 50)
+        lines.append("CURRENT PLANETARY POSITIONS")
+        lines.append("=" * 50)
+        lines.append("")
+        lines.append("Transiting Planets:")
+
+        # Order planets
+        planet_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                        'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                        'North Node', 'South Node']
+
+        for planet in planet_order:
+            if planet in planet_positions:
+                p = planet_positions[planet]
+                lines.append(f"  {planet:12} - {p['degree']}° {p['sign']} (House {p['house']})")
+
+        if natal_activated:
+            lines.append("")
+            lines.append("Your Natal Points Being Activated:")
+
+            for point_name, p in natal_activated.items():
+                lines.append(f"  {point_name:12} - {p['degree']}° {p['sign']} (House {p['house']})")
+
+        lines.append("")
+        lines.append("=" * 50)
+        lines.append("TRANSIT OVERVIEW")
+        lines.append("=" * 50)
+        lines.append("")
+
+        # Sort transits by exact date
+        sorted_transits = sorted(all_transits.values(),
+                                  key=lambda x: x['exact_date'] or '9999-99-99')
+
+        for t in sorted_transits:
+            aspect_line = f"{t['transit_planet']} {t['aspect_word']} natal {t['natal_point']}"
+            lines.append(aspect_line)
+
+            enter = self._format_date_short(t['enter_3deg']) if t['enter_3deg'] else '--'
+            exact = self._format_date_short(t['exact_date']) if t['exact_date'] else '--'
+            leave = self._format_date_short(t['leave_3deg']) if t['leave_3deg'] else '--'
+
+            lines.append(f"  Enters orb: {enter}  |  Exact: {exact}  |  Leaves orb: {leave}")
+            lines.append("")
+
+        lines.append("=" * 50)
+        lines.append("DAILY JOURNAL")
+        lines.append("=" * 50)
+
+        for entry in daily_entries:
+            lines.append("")
+            lines.append(f"{entry['day_name']}, {entry['date_display']}")
+
+            # Moon info
+            moon = entry['moon']
+            moon_line = f"  Moon in {moon['sign']} (House {moon['house']})"
+            lines.append(moon_line)
+
+            # Moon aspects with times
+            if moon['aspects']:
+                for asp in moon['aspects']:
+                    if asp.get('sign_change'):
+                        lines.append(f"    - {asp['time_12hr']:8} enters {asp['sign_change']}")
+                    elif asp['natal_point']:
+                        lines.append(f"    - {asp['time_12hr']:8} {asp['aspect_word']} natal {asp['natal_point']}")
+
+            lines.append("")
+
+            # Events (entering, exact, exiting)
+            for event in entry['events']:
+                event_marker = ">>"
+                if event['event_type'] == 'EXACT':
+                    event_text = f"  {event_marker} {event['transit_planet']} {event['aspect_word']} natal {event['natal_point']} is EXACT today"
+                elif event['event_type'] == 'enters orb':
+                    event_text = f"  {event_marker} {event['transit_planet']} {event['aspect_word']} natal {event['natal_point']} enters orb"
+                else:
+                    event_text = f"  {event_marker} {event['transit_planet']} {event['aspect_word']} natal {event['natal_point']} exits orb"
+                lines.append(event_text)
+
+            # Active transits
+            for transit in entry['active_transits']:
+                # Add context about when it goes exact
+                direction_text = transit['direction']
+                if transit['direction'] == 'approaching' and transit['exact_date']:
+                    exact_dt = datetime.strptime(transit['exact_date'][:10], '%Y-%m-%d')
+                    entry_dt = datetime.strptime(entry['date'], '%Y-%m-%d')
+                    days_until = (exact_dt - entry_dt).days
+                    if days_until == 1:
+                        direction_text = "exact tomorrow"
+                    elif days_until > 0:
+                        direction_text = f"approaching"
+
+                lines.append(f"  - {transit['transit_planet']} {transit['aspect_word']} natal {transit['natal_point']} at {transit['orb']} - {direction_text}")
+
+        return "\n".join(lines)
+
+    def _format_date_short(self, date_str):
+        """Format date as 'Jan 17' style"""
+        if not date_str:
+            return None
+        try:
+            dt = datetime.strptime(date_str[:10], '%Y-%m-%d')
+            return dt.strftime('%b %d')
+        except:
+            return date_str
+
 
 if __name__ == '__main__':
     # Test transit calculator
