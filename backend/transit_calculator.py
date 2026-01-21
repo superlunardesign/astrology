@@ -703,7 +703,7 @@ class TransitCalculator:
             aspect['natal_sign'] = self.get_sign_from_longitude(aspect['natal_longitude'])
 
         # Generate plain text list
-        plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects)
+        plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects, timezone)
 
         return {
             'chart': chart_key,
@@ -715,7 +715,7 @@ class TransitCalculator:
             'plain_text': plain_text_lines
         }
 
-    def generate_plain_text_list(self, chart_key, date_str, time_str, aspects):
+    def generate_plain_text_list(self, chart_key, date_str, time_str, aspects, timezone='America/Los_Angeles'):
         """Generate a plain text list of aspects for easy copying"""
         chart_name = self.ncm.get_chart(chart_key)['name']
         time_12hr = self.format_time_12hr(time_str)
@@ -726,7 +726,27 @@ class TransitCalculator:
 
         lines = [f"{date_formatted} Transits at {time_12hr} PST", f"{chart_name}", ""]
 
+        # Add Moon info section
+        moon_info = self._get_moon_daily_info(chart_key, date_str, timezone)
+        moon_line = f"Moon in {moon_info['sign']} (House {moon_info['house']})"
+        if moon_info['end_sign']:
+            moon_line += f", enters {moon_info['end_sign']}"
+        lines.append(moon_line)
+
+        if moon_info['aspects']:
+            for asp in moon_info['aspects']:
+                if asp.get('sign_change'):
+                    lines.append(f"  {asp['time_12hr']:8} Moon enters {asp['sign_change']}")
+                elif asp['natal_point']:
+                    lines.append(f"  {asp['time_12hr']:8} Moon {asp['aspect_word']} natal {asp['natal_point']}")
+
+        lines.append("")
+
         for aspect in aspects:
+            # Skip Moon aspects in main list since we show them above
+            if aspect['transit_planet'] == 'Moon':
+                continue
+
             direction = "applying" if aspect['is_applying'] else "separating"
             orb_str = f"{int(aspect['orb'])}°{int((aspect['orb'] % 1) * 60):02d}'"
 
