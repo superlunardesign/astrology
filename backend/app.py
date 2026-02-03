@@ -243,6 +243,25 @@ def compare_charts():
         charts_str = request.args.get('charts', 'christina,julian,davison')
         chart_keys = charts_str.split(',')
 
+        # Get current planetary positions (same for all charts)
+        transit_positions = tc.get_transiting_positions(date_str, time_str, timezone)
+        planet_positions = {}
+        planet_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                        'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                        'North Node', 'South Node']
+
+        for planet_name in planet_order:
+            if planet_name in transit_positions:
+                pos = transit_positions[planet_name]
+                longitude = pos['longitude']
+                sign = tc.get_sign_from_longitude(longitude)
+                degree = int(longitude % 30)
+                planet_positions[planet_name] = {
+                    'longitude': longitude,
+                    'sign': sign,
+                    'degree': degree
+                }
+
         results = {}
         for chart_key in chart_keys:
             chart_key = chart_key.strip()
@@ -254,6 +273,9 @@ def compare_charts():
             challenging = sum(1 for a in dashboard['aspects'] if a['is_challenging'])
             supportive = sum(1 for a in dashboard['aspects'] if not a['is_challenging'])
 
+            # Get Moon info for this chart
+            moon_info = tc._get_moon_daily_info(chart_key, date_str, timezone)
+
             results[chart_key] = {
                 'name': tc.ncm.get_chart(chart_key)['name'],
                 'total_aspects': dashboard['total_aspects'],
@@ -261,12 +283,14 @@ def compare_charts():
                 'high': high,
                 'challenging': challenging,
                 'supportive': supportive,
-                'top_aspects': dashboard['aspects']  # All aspects within 3° orb
+                'top_aspects': dashboard['aspects'],  # All aspects within 3° orb
+                'moon_info': moon_info
             }
 
         return jsonify({
             'date': date_str,
             'time': time_str,
+            'planet_positions': planet_positions,
             'charts': results
         })
 

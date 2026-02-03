@@ -1046,34 +1046,82 @@
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + (data.time || '12:00') + ' PST', ''];
 
-            Object.entries(data.charts).forEach(([key, chart]) => {
-                lines.push('══════════════════════════════════════════════════');
-                lines.push(chart.name.toUpperCase());
-                lines.push('══════════════════════════════════════════════════');
+            // Add current planetary positions
+            if (data.planet_positions) {
+                lines.push('==================================================');
+                lines.push('CURRENT PLANETARY POSITIONS');
+                lines.push('==================================================');
                 lines.push('');
 
+                const planetOrder = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                                     'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                                     'North Node', 'South Node'];
+
+                planetOrder.forEach(planet => {
+                    if (data.planet_positions[planet]) {
+                        const p = data.planet_positions[planet];
+                        lines.push('  ' + planet.padEnd(12) + ' - ' + p.degree + '° ' + p.sign);
+                    }
+                });
+                lines.push('');
+            }
+
+            Object.entries(data.charts).forEach(([key, chart]) => {
+                lines.push('==================================================');
+                lines.push(chart.name.toUpperCase());
+                lines.push('==================================================');
+                lines.push('');
+
+                // Add Moon info for this chart
+                if (chart.moon_info) {
+                    const moon = chart.moon_info;
+                    let moonLine = 'Moon in ' + moon.sign + ' (House ' + moon.house + ')';
+                    if (moon.end_sign) {
+                        moonLine += ', enters ' + moon.end_sign;
+                    }
+                    lines.push(moonLine);
+
+                    if (moon.aspects && moon.aspects.length > 0) {
+                        moon.aspects.forEach(asp => {
+                            if (asp.sign_change) {
+                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon enters ' + asp.sign_change);
+                            } else if (asp.natal_point) {
+                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon ' + asp.aspect_word + ' natal ' + asp.natal_point);
+                            }
+                        });
+                    }
+                    lines.push('');
+                }
+
                 if (chart.top_aspects && chart.top_aspects.length > 0) {
-                    chart.top_aspects.forEach(aspect => {
-                        const direction = aspect.is_applying ? 'applying' : 'separating';
-                        const orbDeg = Math.floor(aspect.orb);
-                        const orbMin = Math.floor((aspect.orb % 1) * 60);
-                        const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
+                    // Filter out Moon aspects since we show them above
+                    const nonMoonAspects = chart.top_aspects.filter(a => a.transit_planet !== 'Moon');
 
-                        // Include house info if toggle is on
-                        const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
-                        let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                    if (nonMoonAspects.length > 0) {
+                        nonMoonAspects.forEach(aspect => {
+                            const direction = aspect.is_applying ? 'applying' : 'separating';
+                            const orbDeg = Math.floor(aspect.orb);
+                            const orbMin = Math.floor((aspect.orb % 1) * 60);
+                            const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
 
-                        if (aspect.exact_datetime && aspect.is_applying) {
-                            const [date, time] = aspect.exact_datetime.split(' ');
-                            const exactDate = new Date(date + 'T' + time);
-                            const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                            line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
-                        } else if (aspect.exact_date && aspect.is_applying) {
-                            line += ' | Exact ~' + aspect.exact_date;
-                        }
+                            // Include house info if toggle is on
+                            const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
+                            let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
-                        lines.push(line);
-                    });
+                            if (aspect.exact_datetime && aspect.is_applying) {
+                                const [date, time] = aspect.exact_datetime.split(' ');
+                                const exactDate = new Date(date + 'T' + time);
+                                const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
+                            } else if (aspect.exact_date && aspect.is_applying) {
+                                line += ' | Exact ~' + aspect.exact_date;
+                            }
+
+                            lines.push(line);
+                        });
+                    } else {
+                        lines.push('No significant non-Moon aspects');
+                    }
                 } else {
                     lines.push('No significant aspects');
                 }
