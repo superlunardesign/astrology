@@ -547,10 +547,18 @@ def start_export_journal():
         thread.start()
 
         email_msg = f" Email will be sent to {email_to} when complete." if email_to else ""
+
+        # Estimate time (roughly 1 second per day per chart, plus overhead)
+        estimated_minutes = max(1, (days * len(charts)) // 60 + 1)
+
         return jsonify({
             'job_id': job_id,
             'status': 'queued',
-            'message': f'Export started for {len(charts)} charts over {days} days.{email_msg} Check status at /api/export-journal/{job_id}'
+            'estimated_minutes': estimated_minutes,
+            'message': f'Export started for {len(charts)} charts over {days} days.{email_msg}',
+            'status_url': f'/api/export-journal/{job_id}',
+            'download_url': f'/api/export-journal/{job_id}?download=true',
+            'keep_alive_tip': 'Check status every few minutes to prevent server sleep on free tier'
         })
 
     except Exception as e:
