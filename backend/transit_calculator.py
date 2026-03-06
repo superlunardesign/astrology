@@ -738,7 +738,7 @@ class TransitCalculator:
                        'North Node', 'South Node']
         for planet in planet_order:
             pos = self.em.get_planet_position(planet, jd)
-            sign = self.get_sign(pos['longitude'])
+            sign = self.get_sign_from_longitude(pos['longitude'])
             degree = int(pos['longitude'] % 30)
             lines.append(f"  {planet:12} - {degree}° {sign}")
         lines.append("")
@@ -756,7 +756,7 @@ class TransitCalculator:
         for point in natal_order:
             if point in chart['positions']:
                 longitude = chart['positions'][point]['longitude']
-                sign = self.get_sign(longitude)
+                sign = self.get_sign_from_longitude(longitude)
                 degree = int(longitude % 30)
                 lines.append(f"  {point:12} - {degree}° {sign}")
         lines.append("")
