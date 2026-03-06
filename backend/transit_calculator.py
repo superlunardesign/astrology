@@ -724,9 +724,31 @@ class TransitCalculator:
         dt = datetime.strptime(date_str, '%Y-%m-%d')
         date_formatted = dt.strftime('%B %d, %Y')
 
-        lines = [f"{date_formatted} Transits at {time_12hr} PST", f"{chart_name}", ""]
+        lines = [f"{date_formatted} Transits at {time_12hr} PST", f"for {chart_name}", ""]
 
-        # Add Moon info section
+        # Add current planetary positions section
+        jd = self.em.get_julian_day(date_str, time_str, timezone)
+        lines.append("==================================================")
+        lines.append(f"WHERE THE PLANETS ARE IN THE SKY AT {time_12hr} PST")
+        lines.append("==================================================")
+        lines.append("")
+
+        planet_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                       'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                       'North Node', 'South Node']
+        for planet in planet_order:
+            pos = self.em.get_planet_position(planet, jd)
+            sign = self.get_sign(pos['longitude'])
+            degree = int(pos['longitude'] % 30)
+            lines.append(f"  {planet:12} - {degree}° {sign}")
+        lines.append("")
+
+        # Add Moon transits section
+        lines.append("==================================================")
+        lines.append(f"MOON TRANSITS HAPPENING FOR {chart_name.upper()} TODAY")
+        lines.append("==================================================")
+        lines.append("")
+
         moon_info = self._get_moon_daily_info(chart_key, date_str, timezone)
         moon_line = f"Moon in {moon_info['sign']} (House {moon_info['house']})"
         if moon_info['end_sign']:
@@ -738,8 +760,14 @@ class TransitCalculator:
                 if asp.get('sign_change'):
                     lines.append(f"  {asp['time_12hr']:8} Moon enters {asp['sign_change']}")
                 elif asp['natal_point']:
-                    lines.append(f"  {asp['time_12hr']:8} Moon {asp['aspect_word']} natal {asp['natal_point']}")
+                    lines.append(f"  {asp['time_12hr']:8} Moon {asp['aspect_word']} {chart_name}'s natal {asp['natal_point']}")
 
+        lines.append("")
+
+        # Add planetary transits section
+        lines.append("==================================================")
+        lines.append(f"PLANETARY TRANSITS TO {chart_name.upper()}'S NATAL PLACEMENTS")
+        lines.append("==================================================")
         lines.append("")
 
         for aspect in aspects:
@@ -757,7 +785,7 @@ class TransitCalculator:
             natal_point = aspect['natal_point']
             natal_sign = aspect['natal_sign']
 
-            line = f"{transit_planet} in {transit_sign} {aspect_word} {natal_point} in {natal_sign} at {orb_str} {direction}"
+            line = f"{transit_planet} in {transit_sign} {aspect_word} {chart_name}'s natal {natal_point} in {natal_sign} at {orb_str} {direction}"
 
             # Add exact time/date info
             if aspect.get('exact_datetime') and aspect['is_applying']:

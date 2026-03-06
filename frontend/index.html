@@ -1044,12 +1044,13 @@
             const showHouses = document.getElementById('show-houses').checked;
             const dateObj = new Date(data.date + 'T12:00:00');
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + (data.time || '12:00') + ' PST', ''];
+            const timeStr = data.time || '12:00';
+            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + timeStr + ' PST', ''];
 
             // Add current planetary positions
             if (data.planet_positions) {
                 lines.push('==================================================');
-                lines.push('CURRENT PLANETARY POSITIONS');
+                lines.push('WHERE THE PLANETS ARE IN THE SKY AT ' + timeStr + ' PST');
                 lines.push('==================================================');
                 lines.push('');
 
@@ -1067,13 +1068,13 @@
             }
 
             Object.entries(data.charts).forEach(([key, chart]) => {
-                lines.push('==================================================');
-                lines.push(chart.name.toUpperCase());
-                lines.push('==================================================');
-                lines.push('');
-
-                // Add Moon info for this chart
+                // Moon transits section
                 if (chart.moon_info) {
+                    lines.push('==================================================');
+                    lines.push('MOON TRANSITS HAPPENING FOR ' + chart.name.toUpperCase() + ' TODAY');
+                    lines.push('==================================================');
+                    lines.push('');
+
                     const moon = chart.moon_info;
                     let moonLine = 'Moon in ' + moon.sign + ' (House ' + moon.house + ')';
                     if (moon.end_sign) {
@@ -1086,12 +1087,18 @@
                             if (asp.sign_change) {
                                 lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon enters ' + asp.sign_change);
                             } else if (asp.natal_point) {
-                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon ' + asp.aspect_word + ' natal ' + asp.natal_point);
+                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon ' + asp.aspect_word + ' ' + chart.name + "'s natal " + asp.natal_point);
                             }
                         });
                     }
                     lines.push('');
                 }
+
+                // Planetary transits section
+                lines.push('==================================================');
+                lines.push('PLANETARY TRANSITS TO ' + chart.name.toUpperCase() + "'S NATAL PLACEMENTS");
+                lines.push('==================================================');
+                lines.push('');
 
                 if (chart.top_aspects && chart.top_aspects.length > 0) {
                     // Filter out Moon aspects since we show them above
@@ -1106,13 +1113,13 @@
 
                             // Include house info if toggle is on
                             const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
-                            let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                            let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + chart.name + "'s natal " + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
                             if (aspect.exact_datetime && aspect.is_applying) {
                                 const [date, time] = aspect.exact_datetime.split(' ');
                                 const exactDate = new Date(date + 'T' + time);
-                                const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
+                                const timeFmt = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                line += ' | Exact ' + date + ' ~' + timeFmt + ' PST';
                             } else if (aspect.exact_date && aspect.is_applying) {
                                 line += ' | Exact ~' + aspect.exact_date;
                             }
