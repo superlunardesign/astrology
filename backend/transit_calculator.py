@@ -743,6 +743,24 @@ class TransitCalculator:
             lines.append(f"  {planet:12} - {degree}° {sign}")
         lines.append("")
 
+        # Add natal placements section
+        chart = self.ncm.get_chart(chart_key)
+        lines.append("==================================================")
+        lines.append(f"{chart_name.upper()}'S NATAL PLACEMENTS")
+        lines.append("==================================================")
+        lines.append("")
+
+        natal_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                       'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                       'North Node', 'South Node', 'Ascendant', 'Midheaven']
+        for point in natal_order:
+            if point in chart['positions']:
+                longitude = chart['positions'][point]['longitude']
+                sign = self.get_sign(longitude)
+                degree = int(longitude % 30)
+                lines.append(f"  {point:12} - {degree}° {sign}")
+        lines.append("")
+
         # Add Moon transits section
         lines.append("==================================================")
         lines.append(f"MOON TRANSITS HAPPENING FOR {chart_name.upper()} TODAY")

@@ -326,6 +326,23 @@ def compare_charts():
             # Get Moon info for this chart
             moon_info = tc._get_moon_daily_info(chart_key, date_str, timezone)
 
+            # Get natal positions for this chart
+            chart = tc.ncm.get_chart(chart_key)
+            natal_positions = {}
+            natal_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                          'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                          'North Node', 'South Node', 'Ascendant', 'Midheaven']
+            for point in natal_order:
+                if point in chart['positions']:
+                    longitude = chart['positions'][point]['longitude']
+                    sign = tc.get_sign_from_longitude(longitude)
+                    degree = int(longitude % 30)
+                    natal_positions[point] = {
+                        'longitude': longitude,
+                        'sign': sign,
+                        'degree': degree
+                    }
+
             results[chart_key] = {
                 'name': tc.ncm.get_chart(chart_key)['name'],
                 'total_aspects': dashboard['total_aspects'],
@@ -334,7 +351,8 @@ def compare_charts():
                 'challenging': challenging,
                 'supportive': supportive,
                 'top_aspects': dashboard['aspects'],  # All aspects within 3° orb
-                'moon_info': moon_info
+                'moon_info': moon_info,
+                'natal_positions': natal_positions
             }
 
         return jsonify({
