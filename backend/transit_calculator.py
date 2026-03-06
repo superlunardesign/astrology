@@ -734,7 +734,7 @@ class TransitCalculator:
         lines.append("")
 
         planet_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
-                       'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                       'Saturn', 'Uranus', 'Neptune', 'Pluto',
                        'North Node', 'South Node']
         for planet in planet_order:
             pos = self.em.get_planet_position(planet, jd)
