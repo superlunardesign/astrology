@@ -164,6 +164,9 @@ Birth data and settings are in `backend/config.py`:
   the same direction throughout.
 - The true lunar node wobbles direct/retrograde every few days, so its direction
   is read across the surrounding week rather than from one day's speed.
+- The Davison chart is listed as "Davison (Midpoint)" in the chart pickers, but
+  copy/paste output names it in full - "Davison Relationship Chart of Julian &
+  Christina" in headings, "the Davison chart's natal Pluto" inline.
 
 ### Significance Ratings
 - **CRITICAL**: Outer planets (Pluto, Saturn, Uranus, Neptune) to personal planets or angles

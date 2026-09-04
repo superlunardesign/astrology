@@ -454,7 +454,7 @@
                     <option value="anna">Anna</option>
                     <option value="jarrett">Jarrett</option>
                     <option value="superlunar">Superlunar Design Co.</option>
-                    <option value="davison">Davison Relationship Chart of Julian &amp; Christina</option>
+                    <option value="davison">Davison (Midpoint)</option>
                 </select>
             </div>
 
@@ -564,7 +564,7 @@
                             <option value="anna">Anna</option>
                             <option value="jarrett">Jarrett</option>
                             <option value="superlunar">Superlunar Design Co.</option>
-                            <option value="davison">Davison Relationship Chart of Julian &amp; Christina</option>
+                            <option value="davison">Davison (Midpoint)</option>
                         </select>
                     </div>
                     <div class="control-group">
@@ -722,7 +722,9 @@
         function renderDashboard(data) {
             // Get chart name for plain text
             const chartSelect = document.getElementById('chart-select');
-            data.chart_name = chartSelect.options[chartSelect.selectedIndex].text;
+            // The API's full chart name heads the copy/paste text; the picker
+            // keeps its own short label
+            data.chart_name = data.chart_name || chartSelect.options[chartSelect.selectedIndex].text;
             lastDashboardData = data;
 
             const container = document.getElementById('dashboard-content');
@@ -887,7 +889,8 @@
             }
 
             // Generate plain text for scanner
-            const chartName = document.getElementById('chart-select').options[document.getElementById('chart-select').selectedIndex].text;
+            const chartName = data.chart_name
+                || document.getElementById('chart-select').options[document.getElementById('chart-select').selectedIndex].text;
             const scannerPlainText = generateScannerPlainText(data, chartName);
 
             const html = `

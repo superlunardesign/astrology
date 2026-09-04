@@ -1385,8 +1385,14 @@ class TransitCalculator:
         # Generate plain text list
         plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects, timezone)
 
+        chart_name, chart_short_name = self.get_chart_names(chart_key)
+
         return {
             'chart': chart_key,
+            # Full name for headings and copy/paste, short one for inline use.
+            # The chart picker keeps its own short label.
+            'chart_name': chart_name,
+            'chart_short_name': chart_short_name,
             'date': date_str,
             'time': time_str,
             'timezone': timezone,

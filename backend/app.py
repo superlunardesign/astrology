@@ -87,7 +87,7 @@ def get_charts():
             {'id': 'christina', 'name': 'Christina'},
             {'id': 'julian', 'name': 'Julian'},
             {'id': 'anna', 'name': 'Anna'},
-            {'id': 'davison', 'name': 'Davison Relationship Chart of Julian & Christina'}
+            {'id': 'davison', 'name': 'Davison (Midpoint)'}
         ]
     })
 
@@ -267,6 +267,7 @@ def scan_transits(chart_key):
 
         return jsonify({
             'chart': chart_key,
+            'chart_name': tc.ncm.get_chart(chart_key)['name'],
             'start_date': start_date,
             'end_date': end_date,
             'total_found': len(upcoming),
