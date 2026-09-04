@@ -109,6 +109,71 @@ check('marked retrograde after', uranus_sextile_sun(after)['is_retrograde'])
 check('copy shows the Rx marker', uranus_sextile_sun(after)['motion_marker'] == '(Rx)',
       f"(got {uranus_sextile_sun(after)['motion_marker']!r})")
 
+print("\nA separating aspect still reports the pass it comes back for")
+print("-" * 72)
+julian = tc.get_daily_dashboard('julian', '2026-09-04', max_orb=3)['aspects']
+uranus_venus = next(a for a in julian if a['transit_planet'] == 'Uranus'
+                    and a['natal_point'] == 'Venus' and a['aspect'] == 'Square')
+check('separating right now', not uranus_venus['is_applying'])
+check('the pass behind it is reported',
+      uranus_venus['previous_exact'] and uranus_venus['previous_exact']['date'] == '2026-08-14',
+      f"(got {uranus_venus['previous_exact']})")
+check('the return pass after the station is reported too',
+      uranus_venus['next_exact'] and uranus_venus['next_exact']['date'] == '2026-10-08',
+      f"(got {uranus_venus['next_exact']})")
+check('the return pass is retrograde', uranus_venus['next_exact']['retrograde'])
+check('the station that turns it back is named',
+      any(s['date'] == '2026-09-10' for s in uranus_venus['stations']),
+      f"(got {uranus_venus['stations']})")
+check('both passes make the copy',
+      'Was exact 08-14-2026' in uranus_venus['exact_summary']
+      and 'Next exact 10-08-2026 (Rx)' in uranus_venus['exact_summary'],
+      f"(got {uranus_venus['exact_summary']!r})")
+
+davison = tc.get_daily_dashboard('davison', '2026-09-04', max_orb=3)['aspects']
+uranus_pluto = next(a for a in davison if a['transit_planet'] == 'Uranus'
+                    and a['natal_point'] == 'Pluto' and a['aspect'] == 'Opposition')
+check('Davison Uranus-Pluto reports its return pass',
+      uranus_pluto['next_exact'] and uranus_pluto['next_exact']['date'] == '2026-09-25',
+      f"(got {uranus_pluto['next_exact']})")
+
+print("\nA finished transit is not given a next pass")
+print("-" * 72)
+pluto_mercury = next(a for a in julian if a['transit_planet'] == 'Pluto'
+                     and a['natal_point'] == 'Mercury' and a['aspect'] == 'Conjunction')
+check('Pluto conjunct Mercury is marked final',
+      pluto_mercury['final_pass'] and pluto_mercury['next_exact'] is None,
+      f"(got final_pass={pluto_mercury['final_pass']}, next={pluto_mercury['next_exact']})")
+
+print("\nA fast applying aspect quotes the hit it is heading for")
+print("-" * 72)
+venus_sun = next(a for a in julian if a['transit_planet'] == 'Venus'
+                 and a['natal_point'] == 'Sun' and a['aspect'] == 'Trine')
+check('applying now', venus_sun['is_applying'])
+check('quotes the upcoming hit, not last spring',
+      venus_sun['exact_summary'].startswith('Exact 09-'), f"(got {venus_sun['exact_summary']!r})")
+
+print("\nJournal reports the station, not a false exact")
+print("-" * 72)
+journal = tc.generate_transit_journal('christina', '2026-09-04', days=7)
+station_day = next(e for e in journal['daily_entries'] if e['date'] == '2026-09-10')
+check('Uranus stationing retrograde is a journal event',
+      any(s['planet'] == 'Uranus' and s['type'] == 'SR' for s in station_day['stations']),
+      f"(got {station_day['stations']})")
+check('no Uranus aspect is called exact that day',
+      not any(e['transit_planet'] == 'Uranus' and e['event_type'] == 'EXACT'
+              for e in station_day['events']),
+      f"(got {[e for e in station_day['events'] if e['transit_planet'] == 'Uranus']})")
+check('the overview says the aspect never perfects in orb',
+      'none in this orb window' in journal['plain_text'])
+check('and gives the date it finally perfects',
+      'next exact Jun 02, 2027' in journal['plain_text'])
+
+moon_hits = station_day['moon']['aspects']
+check('Moon hits are timed to the minute, not bucketed on the hour',
+      any(hit['time'].split(':')[1] != '00' for hit in moon_hits),
+      f"(got {[h['time'] for h in moon_hits]})")
+
 print("\nScanner only lists real perfections")
 print("-" * 72)
 scan = tc.scan_future_transits('christina', '2026-09-04', '2026-12-04', min_significance='LOW')

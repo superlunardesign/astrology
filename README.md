@@ -145,6 +145,18 @@ Birth data and settings are in `backend/config.py`:
   again). The station itself is listed separately, never as an exact date.
 - A retrograde series over the same point produces three exact hits, and each
   one is reported.
+- Applying/separating and "will it perfect again?" are separate questions. An
+  aspect can be separating right now and still have another exact pass ahead,
+  because the planet stations and travels back over the same point. So each
+  aspect reports: **current state** (applying/separating), **previous exact**
+  (if one happened), **next exact** (if another pass is coming), and the
+  **station** in between that turns the planet around.
+- The next pass is quoted when the aspect is applying, or when nothing has
+  perfected yet. Once an aspect has perfected, the next pass is only quoted for
+  a slow planet coming back over the point - within six months, or with a
+  station in between. A fast planet's next pass is just its regular cycle.
+- A slow planet with a hit behind it and nothing ahead in a three-year search is
+  marked **(final pass)** - it is done with that aspect.
 - **(Rx)** after a transiting planet means it is retrograde now; **(SR)**/**(SD)**
   mean it stations retrograde/direct that day. **(Rx)** after an exact date means
   the aspect perfects while the planet is retrograde. Direction changes between
@@ -159,13 +171,23 @@ Birth data and settings are in `backend/config.py`:
 - **MEDIUM**: Venus/Mars to relationship points, Jupiter to other points
 - **LOW**: Fast-moving transits (Sun, Mercury) unless to critical points
 
+### Transit Journal
+Day-by-day reads over 7, 10 or 14 days. Each day lists the Moon's sign, ingress
+and every aspect it perfects (timed to the minute from real 0°00' crossings),
+any planet that stations that day, transits entering orb / going exact / leaving
+orb, and every active transit with its current orb. The overview above the daily
+entries lists each transit's orb window and **every** perfection inside it - a
+retrograde series shows all its passes, and an aspect the planet stations short
+of shows "none in this orb window" plus the date it finally perfects.
+
 ## Testing Specific Transits
 
 To verify calculations against known transits:
 
 ```bash
 cd backend
-python test_specific_transits.py
+python test_specific_transits.py   # known transits, printed for eyeballing
+python test_exactness.py           # exactness/retrograde regression checks
 ```
 
 This will show:

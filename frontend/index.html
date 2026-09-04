@@ -386,6 +386,27 @@
             .aspect-details {
                 grid-template-columns: 1fr;
             }
+
+            .tabs {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                border-bottom: none;
+            }
+
+            .tab {
+                padding: 10px 12px;
+                font-size: 13px;
+                text-align: center;
+                border-radius: 8px;
+                background: rgba(255,255,255,0.9);
+                border-bottom: none;
+            }
+
+            .tab.active {
+                background: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
         }
     </style>
 </head>
@@ -457,6 +478,7 @@
             <button class="tab active" data-tab="dashboard">Daily Dashboard</button>
             <button class="tab" data-tab="scanner">Transit Scanner</button>
             <button class="tab" data-tab="compare">Compare Charts</button>
+            <button class="tab" data-tab="journal">Transit Journal</button>
         </div>
 
         <div id="dashboard-tab" class="tab-content active">
@@ -501,6 +523,50 @@
                 </div>
             </div>
         </div>
+
+        <div id="journal-tab" class="tab-content">
+            <div class="dashboard">
+                <h2 style="margin-bottom: 20px;">Transit Journal</h2>
+                <div class="controls" style="margin-bottom: 20px;">
+                    <div class="control-group">
+                        <label for="journal-chart">Chart</label>
+                        <select id="journal-chart">
+                            <option value="christina">Christina</option>
+                            <option value="julian">Julian</option>
+                            <option value="anna">Anna</option>
+                            <option value="jarrett">Jarrett</option>
+                            <option value="superlunar">Superlunar Design Co.</option>
+                            <option value="davison">Davison Relationship Chart of Julian &amp; Christina</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="journal-start">Start Date</label>
+                        <input type="date" id="journal-start">
+                    </div>
+                    <div class="control-group">
+                        <label for="journal-days">Days</label>
+                        <select id="journal-days">
+                            <option value="7" selected>7 days</option>
+                            <option value="10">10 days</option>
+                            <option value="14">14 days</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>&nbsp;</label>
+                        <button id="journal-btn">Generate Journal</button>
+                    </div>
+                    <div class="control-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="journal-compare-mode" style="width: 18px; height: 18px; cursor: pointer;">
+                            Compare All Charts
+                        </label>
+                    </div>
+                </div>
+                <div id="journal-content">
+                    <p style="color: #666;">Select a chart and date range, then click "Generate Journal" to create a day-by-day transit journal.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -516,6 +582,7 @@
         document.getElementById('date-input').value = today;
         document.getElementById('time-input').value = currentTime;
         document.getElementById('scan-start').value = today;
+        document.getElementById('journal-start').value = today;
 
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 120);
@@ -541,6 +608,7 @@
 
         document.getElementById('load-btn').addEventListener('click', loadDashboard);
         document.getElementById('scan-btn').addEventListener('click', scanTransits);
+        document.getElementById('journal-btn').addEventListener('click', loadJournal);
 
         // Toggle houses - re-render views when changed
         document.getElementById('show-houses').addEventListener('change', () => {
@@ -985,32 +1053,109 @@
             const showHouses = document.getElementById('show-houses').checked;
             const dateObj = new Date(data.date + 'T12:00:00');
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + (data.time || '12:00') + ' PST', ''];
+            const timeStr = data.time || '12:00';
+            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + timeStr + ' PST', ''];
+
+            // Add current planetary positions
+            if (data.planet_positions) {
+                lines.push('==================================================');
+                lines.push('WHERE THE PLANETS ARE IN THE SKY AT ' + timeStr + ' PST');
+                lines.push('==================================================');
+                lines.push('');
+
+                const planetOrder = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                                     'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                                     'North Node', 'South Node'];
+
+                planetOrder.forEach(planet => {
+                    if (data.planet_positions[planet]) {
+                        const p = data.planet_positions[planet];
+                        lines.push('  ' + planet.padEnd(12) + ' - ' + p.degree + '° ' + p.sign);
+                    }
+                });
+                lines.push('');
+            }
 
             Object.entries(data.charts).forEach(([key, chart]) => {
-                lines.push('══════════════════════════════════════════════════');
-                lines.push(chart.name.toUpperCase());
-                lines.push('══════════════════════════════════════════════════');
+                // Natal placements section
+                if (chart.natal_positions) {
+                    lines.push('==================================================');
+                    lines.push(chart.name.toUpperCase() + "'S NATAL PLACEMENTS");
+                    lines.push('==================================================');
+                    lines.push('');
+
+                    const natalOrder = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                                        'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                                        'North Node', 'South Node', 'Ascendant', 'Midheaven'];
+
+                    natalOrder.forEach(point => {
+                        if (chart.natal_positions[point]) {
+                            const p = chart.natal_positions[point];
+                            lines.push('  ' + point.padEnd(12) + ' - ' + p.degree + '° ' + p.sign);
+                        }
+                    });
+                    lines.push('');
+                }
+
+                // Moon transits section
+                if (chart.moon_info) {
+                    lines.push('==================================================');
+                    lines.push('MOON TRANSITS HAPPENING FOR ' + chart.name.toUpperCase() + ' TODAY');
+                    lines.push('==================================================');
+                    lines.push('');
+
+                    const moon = chart.moon_info;
+                    let moonLine = 'Moon in ' + moon.sign + ' (House ' + moon.house + ')';
+                    if (moon.end_sign) {
+                        moonLine += ', enters ' + moon.end_sign;
+                    }
+                    lines.push(moonLine);
+
+                    if (moon.aspects && moon.aspects.length > 0) {
+                        moon.aspects.forEach(asp => {
+                            if (asp.sign_change) {
+                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon enters ' + asp.sign_change);
+                            } else if (asp.natal_point) {
+                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon ' + asp.aspect_word + ' ' + chart.name + "'s natal " + asp.natal_point);
+                            }
+                        });
+                    }
+                    lines.push('');
+                }
+
+                // Planetary transits section
+                lines.push('==================================================');
+                lines.push('PLANETARY TRANSITS TO ' + chart.name.toUpperCase() + "'S NATAL PLACEMENTS");
+                lines.push('==================================================');
                 lines.push('');
 
                 if (chart.top_aspects && chart.top_aspects.length > 0) {
-                    chart.top_aspects.forEach(aspect => {
-                        const direction = aspect.is_applying ? 'applying' : 'separating';
-                        const orbDeg = Math.floor(aspect.orb);
-                        const orbMin = Math.floor((aspect.orb % 1) * 60);
-                        const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
+                    // Filter out Moon aspects since we show them above
+                    const nonMoonAspects = chart.top_aspects.filter(a => a.transit_planet !== 'Moon');
 
-                        // Include house info if toggle is on
-                        const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
-                        const motionMark = aspect.motion_marker ? ' ' + aspect.motion_marker : '';
-                        let line = aspect.transit_planet + motionMark + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                    if (nonMoonAspects.length > 0) {
+                        nonMoonAspects.forEach(aspect => {
+                            const direction = aspect.is_applying ? 'applying' : 'separating';
+                            const orbDeg = Math.floor(aspect.orb);
+                            const orbMin = Math.floor((aspect.orb % 1) * 60);
+                            const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
 
-                        if (aspect.exact_summary) {
-                            line += ' | ' + aspect.exact_summary;
-                        }
+                            // Include house info if toggle is on
+                            const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
+                            const motionMark = aspect.motion_marker ? ' ' + aspect.motion_marker : '';
+                            let line = aspect.transit_planet + motionMark + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + chart.name + "'s natal " + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
-                        lines.push(line);
-                    });
+                            // Exactness comes from the backend so the app and
+                            // the copy text never disagree about what is exact
+                            if (aspect.exact_summary) {
+                                line += ' | ' + aspect.exact_summary;
+                            }
+
+                            lines.push(line);
+                        });
+                    } else {
+                        lines.push('No significant non-Moon aspects');
+                    }
                 } else {
                     lines.push('No significant aspects');
                 }
@@ -1263,6 +1408,74 @@
 
             html += '</div>';
             container.innerHTML = html;
+        }
+
+        // Transit Journal functions
+        let lastJournalData = null;
+
+        async function loadJournal() {
+            const chart = document.getElementById('journal-chart').value;
+            const startDate = document.getElementById('journal-start').value;
+            const days = document.getElementById('journal-days').value;
+            const compareMode = document.getElementById('journal-compare-mode').checked;
+
+            showLoading('journal-content');
+            clearError();
+
+            try {
+                let response;
+                if (compareMode) {
+                    response = await fetch(`${API_URL}/api/journal-compare?start_date=${startDate}&days=${days}`);
+                } else {
+                    response = await fetch(`${API_URL}/api/journal/${chart}?start_date=${startDate}&days=${days}`);
+                }
+
+                if (!response.ok) throw new Error('Failed to generate journal');
+
+                const data = await response.json();
+                lastJournalData = data;
+                renderJournal(data, compareMode);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderJournal(data, compareMode) {
+            const container = document.getElementById('journal-content');
+
+            let plainText;
+            let title;
+
+            if (compareMode) {
+                plainText = data.combined_plain_text;
+                title = 'Combined Transit Journals';
+            } else {
+                plainText = data.plain_text;
+                title = `Transit Journal - ${data.chart_name}`;
+            }
+
+            const html = `
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>${title}</h3>
+                        <button onclick="copyJournalText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                    </div>
+                    <pre id="journal-text-output" style="background: #f5f5f5; padding: 20px; border-radius: 8px; font-size: 12px; font-family: 'Courier New', monospace; white-space: pre-wrap; overflow-x: auto; max-height: 600px; overflow-y: auto; line-height: 1.5;">${escapeHtml(plainText)}</pre>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function copyJournalText(btn) {
+            const text = document.getElementById('journal-text-output').innerText;
+            copyTextToClipboard(text, btn);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
