@@ -386,20 +386,24 @@
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
-                /* Stacked, the base align-items:end would pull each field to
-                   the right edge at its own width - stretch fills the row */
+                /* Stacked, the base align-items:end would pull every field to
+                   the right edge - stretch keeps the rows left-aligned */
                 align-items: stretch;
             }
 
             .control-group {
                 width: 100%;
+                /* Fields keep their own width instead of stretching */
+                align-items: flex-start;
             }
 
             .control-group select,
             .control-group input:not([type="checkbox"]),
             .control-group button {
-                width: 100%;
+                /* Never wider than the card - iOS date inputs have an
+                   intrinsic width that overflows it otherwise */
                 max-width: 100%;
+                min-width: 0;
             }
 
             /* Stacked, these only add dead space */
