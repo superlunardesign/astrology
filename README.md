@@ -175,7 +175,7 @@ Birth data and settings are in `backend/config.py`:
 - **LOW**: Fast-moving transits (Sun, Mercury) unless to critical points
 
 ### Transit Journal
-Day-by-day reads over 7, 10 or 14 days. Each day lists the Moon's sign, ingress
+Day-by-day reads over 7, 10, 14, 21 or 30 days. Each day lists the Moon's sign, ingress
 and every aspect it perfects (timed to the minute from real 0°00' crossings),
 any planet that stations that day, transits entering orb / going exact / leaving
 orb, and every active transit with its current orb. The overview above the daily

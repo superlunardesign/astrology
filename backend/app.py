@@ -403,7 +403,7 @@ def get_transit_journal(chart_key):
 
     Query params:
         start_date: Start date (default: today)
-        days: Number of days to include (default: 7, max: 14)
+        days: Number of days to include (default: 7, max: 30)
         timezone: Timezone string (default: America/Los_Angeles)
     """
     try:
@@ -411,8 +411,8 @@ def get_transit_journal(chart_key):
         days = int(request.args.get('days', 7))
         timezone = request.args.get('timezone', 'America/Los_Angeles')
 
-        # Cap days at 14
-        days = min(max(days, 1), 14)
+        # Cap days at 30
+        days = min(max(days, 1), 30)
 
         # Validate date
         try:
@@ -436,7 +436,7 @@ def get_journal_compare():
 
     Query params:
         start_date: Start date (default: today)
-        days: Number of days (default: 7, max: 14)
+        days: Number of days (default: 7, max: 30)
         charts: Comma-separated chart keys (default: christina,julian,davison)
         timezone: Timezone string (default: America/Los_Angeles)
     """
@@ -447,7 +447,7 @@ def get_journal_compare():
         timezone = request.args.get('timezone', 'America/Los_Angeles')
 
         chart_keys = [k.strip() for k in charts_str.split(',')]
-        days = min(max(days, 1), 14)
+        days = min(max(days, 1), 30)
 
         # Validate date
         try:

@@ -1669,13 +1669,13 @@ class TransitCalculator:
         Args:
             chart_key: Chart identifier
             start_date: Start date in YYYY-MM-DD format
-            days: Number of days to include (default 7, max 14)
+            days: Number of days to include (default 7, max 30)
             timezone: Timezone string
 
         Returns:
             Dictionary with journal data and plain text output
         """
-        days = min(days, 14)  # Cap at 14 days
+        days = min(days, 30)  # Cap at 30 days
         start = datetime.strptime(start_date, '%Y-%m-%d')
 
         # Get chart info
