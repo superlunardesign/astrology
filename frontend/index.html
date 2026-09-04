@@ -60,6 +60,11 @@
             gap: 5px;
         }
 
+        /* Sets the checkbox group apart from the fields it follows */
+        .control-group.offset {
+            margin-left: 20px;
+        }
+
         label {
             font-size: 12px;
             font-weight: 600;
@@ -381,6 +386,29 @@
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
+                /* Stacked, the base align-items:end would pull each field to
+                   the right edge at its own width - stretch fills the row */
+                align-items: stretch;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            .control-group select,
+            .control-group input:not([type="checkbox"]),
+            .control-group button {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            /* Stacked, these only add dead space */
+            .control-group label.spacer {
+                display: none;
+            }
+
+            .control-group.offset {
+                margin-left: 0;
             }
 
             .aspect-details {
@@ -441,16 +469,16 @@
             </div>
 
             <div class="control-group">
-                <label>&nbsp;</label>
+                <label class="spacer">&nbsp;</label>
                 <button id="now-btn">Now</button>
             </div>
 
             <div class="control-group">
-                <label>&nbsp;</label>
+                <label class="spacer">&nbsp;</label>
                 <button id="load-btn">Load Transits</button>
             </div>
 
-            <div class="control-group" style="margin-left: 20px;">
+            <div class="control-group offset">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="show-houses" style="width: 18px; height: 18px; cursor: pointer;">
                     Show Houses
@@ -505,7 +533,7 @@
                         <input type="date" id="scan-end">
                     </div>
                     <div class="control-group">
-                        <label>&nbsp;</label>
+                        <label class="spacer">&nbsp;</label>
                         <button id="scan-btn">Scan Transits</button>
                     </div>
                 </div>
@@ -552,7 +580,7 @@
                         </select>
                     </div>
                     <div class="control-group">
-                        <label>&nbsp;</label>
+                        <label class="spacer">&nbsp;</label>
                         <button id="journal-btn">Generate Journal</button>
                     </div>
                     <div class="control-group">
@@ -1413,6 +1441,42 @@
         // Transit Journal functions
         let lastJournalData = null;
 
+        // Charts included when comparing journals
+        const JOURNAL_COMPARE_CHARTS = ['christina', 'julian', 'davison'];
+
+        async function fetchWithTimeout(url, timeoutMs = 120000) {
+            // A free instance can be asleep, so allow a long first response
+            // rather than letting the browser hang or give up early
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+            try {
+                return await fetch(url, { signal: controller.signal });
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function fetchJournal(chart, startDate, days) {
+            const url = `${API_URL}/api/journal/${chart}?start_date=${startDate}&days=${days}`;
+
+            // One retry: the first request to a sleeping instance often dies
+            // while it wakes up, and the second one lands
+            for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                    const response = await fetchWithTimeout(url);
+                    if (response.ok) return await response.json();
+                    if (attempt === 1) throw new Error(`Server returned ${response.status}`);
+                } catch (error) {
+                    if (attempt === 1) {
+                        throw new Error(error.name === 'AbortError'
+                            ? 'The journal took too long to generate. Try fewer days.'
+                            : error.message);
+                    }
+                }
+            }
+        }
+
         async function loadJournal() {
             const chart = document.getElementById('journal-chart').value;
             const startDate = document.getElementById('journal-start').value;
@@ -1423,21 +1487,47 @@
             clearError();
 
             try {
-                let response;
                 if (compareMode) {
-                    response = await fetch(`${API_URL}/api/journal-compare?start_date=${startDate}&days=${days}`);
+                    // One request per chart, rendered as each arrives: three
+                    // short requests instead of one long one that can time out
+                    const journals = [];
+
+                    for (let i = 0; i < JOURNAL_COMPARE_CHARTS.length; i++) {
+                        setJournalProgress(i, JOURNAL_COMPARE_CHARTS.length, journals);
+                        journals.push(await fetchJournal(JOURNAL_COMPARE_CHARTS[i], startDate, days));
+                    }
+
+                    const data = {
+                        start_date: startDate,
+                        days: parseInt(days),
+                        charts: journals.reduce((all, journal) => {
+                            all[journal.chart_key] = journal;
+                            return all;
+                        }, {}),
+                        combined_plain_text: journals.map(j => j.plain_text).join('\n\n\n')
+                    };
+
+                    lastJournalData = data;
+                    renderJournal(data, true);
                 } else {
-                    response = await fetch(`${API_URL}/api/journal/${chart}?start_date=${startDate}&days=${days}`);
+                    const data = await fetchJournal(chart, startDate, days);
+                    lastJournalData = data;
+                    renderJournal(data, false);
                 }
-
-                if (!response.ok) throw new Error('Failed to generate journal');
-
-                const data = await response.json();
-                lastJournalData = data;
-                renderJournal(data, compareMode);
             } catch (error) {
                 showError(error.message);
             }
+        }
+
+        function setJournalProgress(done, total, journals) {
+            const container = document.getElementById('journal-content');
+            const finished = journals.map(j => j.chart_name).join(', ');
+            container.innerHTML = `
+                <div class="loading">
+                    <p>Generating journal ${done + 1} of ${total}...</p>
+                    ${finished ? `<p style="color: #666; font-size: 12px;">Done: ${finished}</p>` : ''}
+                </div>
+            `;
         }
 
         function renderJournal(data, compareMode) {

@@ -180,6 +180,9 @@ entries lists each transit's orb window and **every** perfection inside it - a
 retrograde series shows all its passes, and an aspect the planet stations short
 of shows "none in this orb window" plus the date it finally perfects.
 
+Journals are cached in memory (last 24), and comparison mode requests one chart
+at a time so a slow instance never has to answer one long multi-chart request.
+
 ## Testing Specific Transits
 
 To verify calculations against known transits:

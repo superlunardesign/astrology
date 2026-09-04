@@ -958,6 +958,91 @@ class TransitCalculator:
 
         return timeline
 
+    def summarize_transit_window(self, chart_key, transit_planet, natal_point, aspect_name,
+                                 reference_date, timezone='America/Los_Angeles', orb=3.0,
+                                 max_days=400):
+        """
+        What a journal needs about one transit, without the full timeline.
+
+        The orb window around the reference date, every perfection inside it,
+        the stations inside it, and - when the planet stations short and never
+        perfects there - the next date it actually does. Searching only the orb
+        window (rather than years either side) keeps a multi-chart journal fast.
+
+        Returns:
+            Dict with enter, leave, passes, stations, next_exact_after_window
+        """
+        aspect_angle = ASPECTS[aspect_name]['angle']
+        natal_long = self.ncm.get_natal_position(chart_key, natal_point)
+        ref = datetime.strptime(reference_date[:10], '%Y-%m-%d').replace(hour=12)
+
+        def orb_on(day_offset):
+            jd = self.em.get_julian_day_from_datetime(ref + timedelta(days=day_offset), timezone)
+            position = self.em.get_planet_position(transit_planet, jd)
+            return self.calculate_aspect_orb(position['longitude'], natal_long, aspect_angle)
+
+        def edge(direction):
+            """Days until the aspect leaves orb, scanning coarsely then to the day"""
+            coarse = 5
+            offset = 0
+            while offset < max_days:
+                offset += coarse
+                if orb_on(direction * offset) > orb:
+                    for step_back in range(1, coarse + 1):
+                        if orb_on(direction * (offset - step_back)) <= orb:
+                            return offset - step_back
+                    return offset
+            return None
+
+        days_before = edge(-1)
+        days_after = edge(1)
+
+        window_start = ref - timedelta(days=days_before if days_before is not None else max_days)
+        window_end = ref + timedelta(days=days_after if days_after is not None else max_days)
+
+        step_hours = 2 if transit_planet == 'Moon' else (12 if transit_planet in
+                                                         ['Sun', 'Mercury', 'Venus', 'Mars'] else 24)
+
+        passes = self.find_exact_crossings(
+            transit_planet, natal_long, aspect_angle,
+            window_start, window_end, step_hours=step_hours, timezone=timezone
+        )
+
+        stations = self.find_stations(
+            transit_planet, window_start, window_end, timezone=timezone,
+            step_hours=min(step_hours, 24), natal_long=natal_long, aspect_angle=aspect_angle
+        )
+
+        # Stationed short of the aspect: say where it finally perfects
+        next_after = None
+        if not passes:
+            forward_span, _, look_ahead_step, _ = self.get_search_window(transit_planet)
+            later = self.find_exact_crossings(
+                transit_planet, natal_long, aspect_angle,
+                window_end, window_end + forward_span,
+                step_hours=look_ahead_step, timezone=timezone, max_results=1
+            )
+            if later:
+                next_after = {
+                    'date': later[0]['datetime'].strftime('%Y-%m-%d'),
+                    'retrograde': later[0]['retrograde']
+                }
+
+        return {
+            'enter': window_start.strftime('%Y-%m-%d') if days_before is not None else None,
+            'leave': window_end.strftime('%Y-%m-%d') if days_after is not None else None,
+            'passes': [
+                {'date': hit['datetime'].strftime('%Y-%m-%d'), 'retrograde': hit['retrograde']}
+                for hit in passes
+            ],
+            'stations': [
+                {'date': station['datetime'].strftime('%Y-%m-%d'),
+                 'type': station['type'], 'orb': station['orb']}
+                for station in stations
+            ],
+            'next_exact_after_window': next_after
+        }
+
     def rate_aspect_significance(self, transit_planet, natal_point, aspect_name):
         """
         Rate the significance of an aspect
@@ -1650,14 +1735,14 @@ class TransitCalculator:
                 natal_points_activated.add(aspect['natal_point'])
 
                 if key not in all_transits:
-                    # Calculate timeline for this transit
-                    timeline = self.calculate_aspect_timeline(
+                    # Only the orb window is needed here, not a full timeline
+                    summary = self.summarize_transit_window(
                         chart_key,
                         aspect['transit_planet'],
                         aspect['natal_point'],
                         aspect['aspect'],
                         date_str,
-                        precise=False
+                        timezone=timezone
                     )
 
                     significance, is_challenging = self.rate_aspect_significance(
@@ -1666,38 +1751,19 @@ class TransitCalculator:
                         aspect['aspect']
                     )
 
-                    # Every perfection inside this orb window - a retrograde
-                    # over the same point perfects three times, and a planet
-                    # that stations short of it perfects none
-                    window_start = timeline.get('enter_3deg')
-                    window_end = timeline.get('leave_3deg')
-                    passes = [
-                        {'date': hit['date'], 'retrograde': hit['retrograde']}
-                        for hit in timeline.get('exact_dates', [])
-                        if (not window_start or hit['date'] >= window_start[:10])
-                        and (not window_end or hit['date'] <= window_end[:10])
-                    ]
-
-                    later = [
-                        hit for hit in timeline.get('exact_dates', [])
-                        if window_end and hit['date'] > window_end[:10]
-                    ]
-
                     all_transits[key] = {
                         'transit_planet': aspect['transit_planet'],
                         'natal_point': aspect['natal_point'],
                         'aspect': aspect['aspect'],
                         'aspect_word': self.get_aspect_word(aspect['aspect']),
-                        'enter_3deg': timeline.get('enter_3deg'),
-                        'exact_date': passes[0]['date'] if passes else None,
-                        'passes': passes,
-                        'stations': [
-                            station for station in timeline.get('stations', [])
-                            if (not window_start or station['date'] >= window_start[:10])
-                            and (not window_end or station['date'] <= window_end[:10])
-                        ],
-                        'leave_3deg': timeline.get('leave_3deg'),
-                        'next_exact_after_window': later[0] if later else None,
+                        'enter_3deg': summary['enter'],
+                        # Exact is the 0°00' crossing - a planet that stations
+                        # short of the aspect perfects none in this window
+                        'exact_date': summary['passes'][0]['date'] if summary['passes'] else None,
+                        'passes': summary['passes'],
+                        'stations': summary['stations'],
+                        'leave_3deg': summary['leave'],
+                        'next_exact_after_window': summary['next_exact_after_window'],
                         'significance': significance,
                         'is_challenging': is_challenging
                     }

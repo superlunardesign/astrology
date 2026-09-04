@@ -4,6 +4,7 @@ Flask API for Transit Tracker
 from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 from transit_calculator import TransitCalculator
+from collections import OrderedDict
 from datetime import datetime, timedelta
 import traceback
 import os
@@ -369,6 +370,31 @@ def compare_charts():
         return jsonify({'error': str(e)}), 500
 
 
+# Journals are the heaviest thing the app builds, and the same one gets asked
+# for repeatedly (a re-click, or each chart of a comparison). Keeping the last
+# few in memory turns those into instant responses.
+JOURNAL_CACHE_LIMIT = 24
+_journal_cache = OrderedDict()
+
+
+def build_journal(chart_key, start_date, days, timezone):
+    """Journal for one chart, reusing a recent identical one if we have it"""
+    cache_key = (chart_key, start_date, days, timezone)
+
+    cached = _journal_cache.get(cache_key)
+    if cached is not None:
+        _journal_cache.move_to_end(cache_key)
+        return cached
+
+    journal = tc.generate_transit_journal(chart_key, start_date, days, timezone)
+
+    _journal_cache[cache_key] = journal
+    while len(_journal_cache) > JOURNAL_CACHE_LIMIT:
+        _journal_cache.popitem(last=False)
+
+    return journal
+
+
 @app.route('/api/journal/<chart_key>', methods=['GET'])
 def get_transit_journal(chart_key):
     """
@@ -393,7 +419,7 @@ def get_transit_journal(chart_key):
         except ValueError:
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
-        journal = tc.generate_transit_journal(chart_key, start_date, days, timezone)
+        journal = build_journal(chart_key, start_date, days, timezone)
 
         return jsonify(journal)
 
@@ -432,7 +458,7 @@ def get_journal_compare():
         combined_plain_text = []
 
         for chart_key in chart_keys:
-            journal = tc.generate_transit_journal(chart_key, start_date, days, timezone)
+            journal = build_journal(chart_key, start_date, days, timezone)
             journals[chart_key] = journal
             combined_plain_text.append(journal['plain_text'])
             combined_plain_text.append("\n" + "=" * 60 + "\n")
