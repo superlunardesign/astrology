@@ -405,7 +405,7 @@
                     <option value="anna">Anna</option>
                     <option value="jarrett">Jarrett</option>
                     <option value="superlunar">Superlunar Design Co.</option>
-                    <option value="davison">Davison (Midpoint)</option>
+                    <option value="davison">Davison Relationship Chart of Julian &amp; Christina</option>
                 </select>
             </div>
 
@@ -724,16 +724,12 @@
                 ? '<span class="badge challenging">⚠️ Challenging</span>'
                 : '<span class="badge supportive">✓ Supportive</span>';
 
-            // Format exact date/time
-            let exactInfo = 'N/A';
-            if (aspect.exact_datetime) {
-                const [date, time] = aspect.exact_datetime.split(' ');
-                const dateObj = new Date(date + 'T' + time);
-                const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                exactInfo = `${date} ~${timeStr}`;
-            } else if (aspect.exact_date) {
-                exactInfo = `~${aspect.exact_date}`;
-            }
+            // Exactness, as the backend describes it: only a true 0°00' hit
+            // counts, and (Rx) means the hit happens while retrograde
+            const exactInfo = aspect.exact_summary || 'N/A';
+
+            // (Rx) / (SR) / (SD) for the transiting planet
+            const motionMark = aspect.motion_marker ? ` ${aspect.motion_marker}` : '';
 
             // House info for title
             const houseInfo = (showHouses && aspect.transit_house) ? ` (${getOrdinal(aspect.transit_house)} house)` : '';
@@ -748,7 +744,7 @@
                 <div class="aspect-card ${aspect.significance.toLowerCase()}" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}', '${exactDateForTimeline}')">
                     <div class="aspect-header">
                         <div class="aspect-title">
-                            ${aspect.transit_planet} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
+                            ${aspect.transit_planet}${motionMark} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
                             <span style="font-size: 12px; color: #999; margin-left: 8px;">▼ Click for timeline</span>
                         </div>
                         <div class="aspect-badges">
@@ -832,7 +828,19 @@
                             <div class="detail-item">
                                 <span class="detail-label">Exits 3° Orb</span>
                                 <span class="detail-value">${transit.exit_date || 'N/A'}</span>
-                            </div>
+                            </div>`;
+
+                        // Direction changes while in orb - without these the
+                        // planet keeps one direction across the whole window
+                        if (transit.stations && transit.stations.length > 0) {
+                            details += `
+                            <div class="detail-item">
+                                <span class="detail-label">Direction Changes</span>
+                                <span class="detail-value">${formatStations(transit.stations)}</span>
+                            </div>`;
+                        }
+
+                        details += `
                             <div class="detail-item">
                                 <span class="detail-label">Significance</span>
                                 <span class="detail-value">${transit.significance}</span>
@@ -842,7 +850,7 @@
                         <div class="aspect-card ${transit.significance.toLowerCase()}">
                             <div class="aspect-header">
                                 <div class="aspect-title">
-                                    ${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point}
+                                    ${transit.exact_date}${transit.exact_retrograde ? ' (Rx)' : ''}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point}
                                 </div>
                                 <div class="aspect-badges">
                                     ${transit.is_challenging ? '<span class="badge challenging">⚠️ Challenging</span>' : '<span class="badge supportive">✓ Supportive</span>'}
@@ -864,13 +872,16 @@
             let lines = [`Upcoming Exact Transits: ${chartName}`, `${data.start_date} to ${data.end_date}`, ''];
 
             data.transits.forEach(transit => {
-                const type = transit.is_challenging ? 'Challenging' : 'Supportive';
-                let line = `${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point} [${transit.significance}] (${type})`;
+                const rx = transit.exact_retrograde ? ' (Rx)' : '';
+                let line = `${transit.exact_date}${rx}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point}`;
                 if (showEntryDates && transit.entry_date) {
                     line += ` | Enters 3° on ${transit.entry_date}`;
                 }
                 if (transit.exit_date) {
                     line += ` | Exits 3° on ${transit.exit_date}`;
+                }
+                if (transit.stations && transit.stations.length > 0) {
+                    line += ` | ${formatStations(transit.stations)}`;
                 }
                 lines.push(line);
             });
@@ -893,15 +904,13 @@
                 const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
 
                 const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
-                let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                const motionMark = aspect.motion_marker ? ' ' + aspect.motion_marker : '';
+                let line = aspect.transit_planet + motionMark + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
-                if (aspect.exact_datetime && aspect.is_applying) {
-                    const [date, time] = aspect.exact_datetime.split(' ');
-                    const exactDate = new Date(date + 'T' + time);
-                    const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                    line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
-                } else if (aspect.exact_date && aspect.is_applying) {
-                    line += ' | Exact ~' + aspect.exact_date;
+                // Exactness comes from the backend so the app and the copy text
+                // never disagree about what counts as exact
+                if (aspect.exact_summary) {
+                    line += ' | ' + aspect.exact_summary;
                 }
 
                 lines.push(line);
@@ -993,15 +1002,11 @@
 
                         // Include house info if toggle is on
                         const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
-                        let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                        const motionMark = aspect.motion_marker ? ' ' + aspect.motion_marker : '';
+                        let line = aspect.transit_planet + motionMark + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
-                        if (aspect.exact_datetime && aspect.is_applying) {
-                            const [date, time] = aspect.exact_datetime.split(' ');
-                            const exactDate = new Date(date + 'T' + time);
-                            const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                            line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
-                        } else if (aspect.exact_date && aspect.is_applying) {
-                            line += ' | Exact ~' + aspect.exact_date;
+                        if (aspect.exact_summary) {
+                            line += ' | ' + aspect.exact_summary;
                         }
 
                         lines.push(line);
@@ -1013,6 +1018,13 @@
             });
 
             return lines.join('\n');
+        }
+
+        function formatStations(stations) {
+            // "goes Rx" / "stations direct" with the date it happens
+            return stations
+                .map(station => (station.type === 'SR' ? 'goes Rx ' : 'stations direct ') + station.date)
+                .join(', ');
         }
 
         function getAspectWord(aspectName) {
@@ -1144,13 +1156,45 @@
                 });
             }
 
-            // Exact point (use exact_datetime if available from precise mode)
-            if (timeline.exact_datetime || timeline.exact_date) {
+            // Every real perfection - a retrograde series has three. Exact
+            // means the aspect reached 0°00', never just a station.
+            const exactHits = timeline.exact_dates && timeline.exact_dates.length > 0
+                ? timeline.exact_dates
+                : (timeline.exact_date ? [{
+                    datetime: timeline.exact_datetime || timeline.exact_date,
+                    orb: timeline.exact_orb,
+                    retrograde: timeline.exact_retrograde
+                }] : []);
+
+            exactHits.forEach(hit => {
                 timelineItems.push({
-                    label: 'EXACT',
-                    date: timeline.exact_datetime || timeline.exact_date,
+                    label: hit.retrograde ? 'EXACT (Rx)' : 'EXACT',
+                    date: hit.datetime || hit.date,
                     type: 'exact',
-                    orb: timeline.exact_orb
+                    orb: hit.orb
+                });
+            });
+
+            // Direction changes inside the window. Without one listed, the
+            // planet holds the same direction across every date shown.
+            (timeline.stations || []).forEach(station => {
+                timelineItems.push({
+                    label: station.type === 'SR' ? 'Goes retrograde' : 'Stations direct',
+                    date: station.datetime || station.date,
+                    type: 'station',
+                    orb: station.orb
+                });
+            });
+
+            // Applied but turned back without reaching 0°00'
+            if (!timeline.perfects && timeline.closest_approach) {
+                timelineItems.push({
+                    label: timeline.closest_approach.is_station
+                        ? 'Closest approach (stations, never exact)'
+                        : 'Closest approach (never exact)',
+                    date: timeline.closest_approach.datetime || timeline.closest_approach.date,
+                    type: 'closest',
+                    orb: timeline.closest_approach.orb
                 });
             }
 
@@ -1177,6 +1221,9 @@
                 });
             }
 
+            // Show everything in the order it happens
+            timelineItems.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
             let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline (PST)</h4>';
 
             timelineItems.forEach(item => {
@@ -1201,7 +1248,7 @@
                     dateFormatted = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 }
 
-                const orbInfo = item.orb !== undefined ? ` (${item.orb.toFixed(4)}°)` : '';
+                const orbInfo = (item.orb !== undefined && item.orb !== null) ? ` (${item.orb.toFixed(4)}°)` : '';
 
                 html += `
                     <div class="timeline-item">

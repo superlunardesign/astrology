@@ -88,7 +88,7 @@ NATAL_POSITIONS = {
         }
     },
     'davison': {
-        'name': 'Davison',
+        'name': 'Davison Relationship Chart of Julian & Christina',
         'birth_data': {
             'date': '1997-03-07',
             'time': '03:58',
@@ -229,7 +229,7 @@ NATAL_CHARTS = {
         }
     },
     'davison': {
-        'name': 'Davison',
+        'name': 'Davison Relationship Chart of Julian & Christina',
         'date': '1997-03-07',
         'time': '03:58',
         'location': {

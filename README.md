@@ -131,7 +131,27 @@ Birth data and settings are in `backend/config.py`:
 ### Applying vs Separating
 - **Applying**: Aspect is getting closer to exact (orb decreasing)
 - **Separating**: Aspect is moving away from exact (orb increasing)
-- Determined by comparing current orb to orb 24 hours later
+- Determined by comparing the current orb to the orb a few hours later, from the
+  planet's real position - so a planet that stations flips to separating the
+  moment it turns, even though its listed speed is near zero
+
+### Exactness
+- An aspect is **exact** only at the moment it reaches 0°00' - the transiting
+  planet crossing the aspect point. Exact dates come from that crossing, found
+  by bisection, never from "the orb stopped shrinking".
+- A planet that stations while still applying **never goes exact on that pass**.
+  It flips from applying to separating at the station, and the reported exact
+  date is the later pass where it truly perfects (often after it turns direct
+  again). The station itself is listed separately, never as an exact date.
+- A retrograde series over the same point produces three exact hits, and each
+  one is reported.
+- **(Rx)** after a transiting planet means it is retrograde now; **(SR)**/**(SD)**
+  mean it stations retrograde/direct that day. **(Rx)** after an exact date means
+  the aspect perfects while the planet is retrograde. Direction changes between
+  today and a quoted date are listed with it - with none listed, the planet holds
+  the same direction throughout.
+- The true lunar node wobbles direct/retrograde every few days, so its direction
+  is read across the surrounding week rather than from one day's speed.
 
 ### Significance Ratings
 - **CRITICAL**: Outer planets (Pluto, Saturn, Uranus, Neptune) to personal planets or angles

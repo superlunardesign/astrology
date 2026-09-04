@@ -36,7 +36,7 @@ def get_charts():
             {'id': 'christina', 'name': 'Christina'},
             {'id': 'julian', 'name': 'Julian'},
             {'id': 'anna', 'name': 'Anna'},
-            {'id': 'davison', 'name': 'Davison (Midpoint)'}
+            {'id': 'davison', 'name': 'Davison Relationship Chart of Julian & Christina'}
         ]
     })
 
@@ -101,7 +101,9 @@ def get_dashboard(chart_key):
                 'transit_long': tc.ncm.format_position(aspect['transit_longitude']),
                 'natal_long': tc.ncm.format_position(aspect['natal_longitude']),
                 'direction': '→ APPLYING' if aspect['is_applying'] else '← SEPARATING',
-                'challenge_type': '⚠️ CHALLENGING' if aspect['is_challenging'] else '✓ SUPPORTIVE'
+                'challenge_type': '⚠️ CHALLENGING' if aspect['is_challenging'] else '✓ SUPPORTIVE',
+                'motion': '(Rx) RETROGRADE' if aspect['is_retrograde'] else 'DIRECT',
+                'exactness': aspect['exact_summary']
             }
 
         return jsonify(dashboard)

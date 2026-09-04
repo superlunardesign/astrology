@@ -31,8 +31,10 @@ for aspect in dashboard['aspects']:
         print(f"  Current orb: {aspect['orb']:.2f}°")
         print(f"  Direction: {direction}")
         print(f"  Strength: {aspect['strength']:.1f}%")
-        print(f"  Exact date: {aspect['exact_date']}")
-        print(f"  Exact orb: {aspect['exact_orb']:.4f}°")
+        # No exact date means the aspect never reaches 0°00' from here -
+        # the planet stations and turns back before it can perfect
+        print(f"  Exactness: {aspect['exact_summary']}")
+        print(f"  Motion: {aspect['motion']}")
 
         # Special handling for Pluto-Mercury
         if aspect['transit_planet'] == 'Pluto' and aspect['natal_point'] == 'Mercury':
@@ -47,7 +49,10 @@ for aspect in dashboard['aspects']:
             print(f"    Entered 5° orb: {timeline['enter_5deg']}")
             print(f"    Entered 3° orb: {timeline['enter_3deg']}")
             print(f"    Entered 1° orb: {timeline['enter_1deg']}")
-            print(f"    EXACT: {timeline['exact_date']} (orb: {timeline['exact_orb']:.4f}°)")
+            if timeline['exact_date']:
+                print(f"    EXACT: {timeline['exact_date']} (orb: {timeline['exact_orb']:.4f}°)")
+            else:
+                print(f"    Never exact - closest approach: {timeline['closest_approach']}")
             print(f"    Leaves 1° orb: {timeline['leave_1deg']}")
             print(f"    Leaves 3° orb: {timeline['leave_3deg']}")
             print(f"    Leaves 5° orb: {timeline['leave_5deg']}")
@@ -72,7 +77,7 @@ for aspect in dashboard['aspects']:
         print(f"  Type: {challenge}")
         print(f"  Significance: {aspect['significance']}")
         print(f"  Strength: {aspect['strength']:.1f}%")
-        print(f"  Exact date: {aspect['exact_date']}")
+        print(f"  Exactness: {aspect['exact_summary']}")
 
         # Calculate timeline for Saturn-North Node
         if aspect['natal_point'] == 'North Node':
