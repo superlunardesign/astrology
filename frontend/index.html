@@ -607,19 +607,40 @@
             ? 'http://localhost:5000'
             : '';
 
+        // Everything here runs on Pacific time, which is what the backend
+        // reads and what the Time (Pacific) field says. toISOString() would
+        // give the UTC date instead - already tomorrow after 5pm Pacific, so
+        // an evening visit loaded the next day's transits.
+        function pacificParts(date) {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Los_Angeles',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+            }).formatToParts(date);
+
+            const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+            return {
+                date: `${value.year}-${value.month}-${value.day}`,
+                time: `${value.hour}:${value.minute}`
+            };
+        }
+
+        function pacificDate(date) {
+            return pacificParts(date).date;
+        }
+
         // Initialize date and time inputs
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        const currentTime = now.toTimeString().slice(0, 5);
+        const nowPacific = pacificParts(new Date());
+        const today = nowPacific.date;
 
         document.getElementById('date-input').value = today;
-        document.getElementById('time-input').value = currentTime;
+        document.getElementById('time-input').value = nowPacific.time;
         document.getElementById('scan-start').value = today;
         document.getElementById('journal-start').value = today;
 
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 120);
-        document.getElementById('scan-end').value = endDate.toISOString().split('T')[0];
+        document.getElementById('scan-end').value = pacificDate(endDate);
 
         // Tab handling
         document.querySelectorAll('.tab').forEach(tab => {
@@ -634,9 +655,9 @@
 
         // Event listeners
         document.getElementById('now-btn').addEventListener('click', () => {
-            const now = new Date();
-            document.getElementById('date-input').value = now.toISOString().split('T')[0];
-            document.getElementById('time-input').value = now.toTimeString().slice(0, 5);
+            const pacific = pacificParts(new Date());
+            document.getElementById('date-input').value = pacific.date;
+            document.getElementById('time-input').value = pacific.time;
         });
 
         document.getElementById('load-btn').addEventListener('click', loadDashboard);
