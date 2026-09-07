@@ -10,7 +10,6 @@ A web application for tracking transits to multiple natal charts over time, with
 - Indicate if APPLYING (→) or SEPARATING (←)
 - Display aspect strength as percentage (100% at exact, 0% at 3°)
 - Show when aspect goes exact
-- Rate significance: CRITICAL, HIGH, MEDIUM, LOW
 - Filter challenging vs supportive aspects
 
 ### Transit Scanner
@@ -113,7 +112,6 @@ Birth data and settings are in `backend/config.py`:
 - Natal chart data (dates, times, locations)
 - Planets to track
 - Aspects and orbs
-- Significance ratings
 
 ## Calculation Details
 
@@ -131,13 +129,86 @@ Birth data and settings are in `backend/config.py`:
 ### Applying vs Separating
 - **Applying**: Aspect is getting closer to exact (orb decreasing)
 - **Separating**: Aspect is moving away from exact (orb increasing)
-- Determined by comparing current orb to orb 24 hours later
+- Determined by comparing the current orb to the orb a few hours later, from the
+  planet's real position - so a planet that stations flips to separating the
+  moment it turns, even though its listed speed is near zero
 
-### Significance Ratings
-- **CRITICAL**: Outer planets (Pluto, Saturn, Uranus, Neptune) to personal planets or angles
-- **HIGH**: Outer planets to inner planets, Jupiter to Sun/Moon/Venus
-- **MEDIUM**: Venus/Mars to relationship points, Jupiter to other points
-- **LOW**: Fast-moving transits (Sun, Mercury) unless to critical points
+### Exactness
+- An aspect is **exact** only at the moment it reaches 0°00' - the transiting
+  planet crossing the aspect point. Exact dates come from that crossing, found
+  by bisection, never from "the orb stopped shrinking".
+- A planet that stations while still applying **never goes exact on that pass**.
+  It flips from applying to separating at the station, and the reported exact
+  date is the later pass where it truly perfects (often after it turns direct
+  again). The station itself is listed separately, never as an exact date.
+- A retrograde series over the same point produces three exact hits, and each
+  one is reported.
+- Applying/separating and "will it perfect again?" are separate questions. An
+  aspect can be separating right now and still have another exact pass ahead,
+  because the planet stations and travels back over the same point. So each
+  aspect reports: **current state** (applying/separating), **previous exact**
+  (if one happened), **next exact** (if another pass is coming), and the
+  **station** in between that turns the planet around.
+- The next pass is quoted when the aspect is applying, or when nothing has
+  perfected yet. Once an aspect has perfected, the next pass is only quoted for
+  a slow planet coming back over the point - within six months, or with a
+  station in between. A fast planet's next pass is just its regular cycle.
+- A slow planet with a hit behind it and nothing ahead in a three-year search is
+  marked **(final pass)** - it is done with that aspect.
+- **(Rx)** after a transiting planet means it is retrograde now; **(SR)**/**(SD)**
+  mean it stations retrograde/direct that day. **(Rx)** after an exact date means
+  the aspect perfects while the planet is retrograde. Direction changes between
+  today and a quoted date are listed with it - with none listed, the planet holds
+  the same direction throughout.
+- The true lunar node wobbles direct/retrograde every few days, so its direction
+  is read across the surrounding week rather than from one day's speed.
+- Every time in the app is Pacific, labelled for the date it falls on: PDT from
+  March to November, PST otherwise. A journal that crosses the clock change says
+  so in its header.
+- The Davison chart is listed as "Davison (Midpoint)" in the chart pickers, but
+  copy/paste output names it in full - "Davison Relationship Chart of Julian &
+  Christina" in headings, "the Davison chart's natal Pluto" inline.
+
+### What the app does not decide
+Nothing is ranked or characterised - no critical/high/medium tiers, no
+challenging or supportive labels. Every aspect within orb is listed on equal
+footing with its own facts: orb, applying or separating, direction of travel,
+and when it perfects. Reading them is yours.
+
+### Transit Scanner
+Lists every real perfection in a date range. Narrow it by transiting planet or
+by aspect if the list gets long - both are facts about the transit, not
+judgements about it.
+
+### Progressions & Solar Arc
+Secondary progressions (a day of ephemeris per year of life) and solar arc
+directions (every natal point advanced by the progressed Sun's travel) for any
+chart, the Davison included. Shows the progressed chart with houses and
+retrogrades, the progressed Moon's sign, phase and next changes, and aspects -
+progressed to natal, progressed Moon to progressed chart, and directed to natal
+- each with the pass behind and the pass ahead, found as real 0°00' crossings.
+Default orb is 1°; search windows scale to how fast the point moves, and never
+reach back before the chart's own birth moment.
+
+Progressed **angles** have no single agreed method. They advance by solar arc in
+longitude, which was confirmed against Time Nomad: for the Davison on
+2027-01-01 it gives a progressed MC of 17°18.6' Sagittarius against Time
+Nomad's 17°19', while Naibod lands 12' away and the RA-based methods over a
+degree. `ProgressionCalculator(tc, angle_method='naibod')` switches if ever
+needed. test_progressions.py holds those observed values, so a change that
+breaks the agreement gets caught.
+
+### Transit Journal
+Day-by-day reads over 7, 10, 14, 21 or 30 days. Each day lists the Moon's sign, ingress
+and every aspect it perfects (timed to the minute from real 0°00' crossings),
+any planet that stations that day, transits entering orb / going exact / leaving
+orb, and every active transit with its current orb. The overview above the daily
+entries lists each transit's orb window and **every** perfection inside it - a
+retrograde series shows all its passes, and an aspect the planet stations short
+of shows "none in this orb window" plus the date it finally perfects.
+
+Journals are cached in memory (last 24), and comparison mode requests one chart
+at a time so a slow instance never has to answer one long multi-chart request.
 
 ## Testing Specific Transits
 
@@ -145,8 +216,19 @@ To verify calculations against known transits:
 
 ```bash
 cd backend
-python test_specific_transits.py
+python test_specific_transits.py   # known transits, printed for eyeballing
+python test_exactness.py           # exactness/retrograde regression checks
+python verify_positions.py         # positions and time handling vs outside references
+python test_progressions.py        # progressions and solar arc against their definitions
 ```
+
+`verify_positions.py` is the accuracy check to reach for when the app disagrees
+with other astrology software. It uses no Swiss Ephemeris: planet positions are
+recomputed from JPL's published Keplerian elements, and the date-to-Julian-Day
+chain is checked against fixed constants (J2000, the Unix epoch, and PDT/PST
+offsets). Agreement to a few arc minutes means the ephemeris and timezone
+handling are sound, so any remaining disagreement is in the chart data - a natal
+degree, or a chart's date/time/place - rather than the transit math.
 
 This will show:
 - Julian's Pluto conjunct Mercury (currently active)

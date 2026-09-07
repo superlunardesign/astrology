@@ -60,6 +60,11 @@
             gap: 5px;
         }
 
+        /* Sets the checkbox group apart from the fields it follows */
+        .control-group.offset {
+            margin-left: 20px;
+        }
+
         label {
             font-size: 12px;
             font-weight: 600;
@@ -213,22 +218,6 @@
             font-size: 14px;
         }
 
-        .aspect-card.critical {
-            border-left: 4px solid #e74c3c;
-        }
-
-        .aspect-card.high {
-            border-left: 4px solid #f39c12;
-        }
-
-        .aspect-card.medium {
-            border-left: 4px solid #3498db;
-        }
-
-        .aspect-card.low {
-            border-left: 4px solid #95a5a6;
-        }
-
         .aspect-header {
             display: flex;
             justify-content: space-between;
@@ -262,16 +251,6 @@
 
         .badge.separating {
             background: #95a5a6;
-            color: white;
-        }
-
-        .badge.challenging {
-            background: #e74c3c;
-            color: white;
-        }
-
-        .badge.supportive {
-            background: #2ecc71;
             color: white;
         }
 
@@ -383,8 +362,55 @@
                 flex-direction: column;
             }
 
+            .control-group {
+                /* Stacked, each field keeps its own width against the right
+                   edge, matching the container's align-items: end */
+                align-items: flex-end;
+                max-width: 100%;
+            }
+
+            .control-group select,
+            .control-group input:not([type="checkbox"]),
+            .control-group button,
+            .control-group label {
+                /* Never wider than the card - iOS date inputs have an
+                   intrinsic width that spills past it otherwise */
+                max-width: 100%;
+                min-width: 0;
+            }
+
+            /* Stacked, these only add dead space */
+            .control-group label.spacer {
+                display: none;
+            }
+
+            .control-group.offset {
+                margin-left: 0;
+            }
+
             .aspect-details {
                 grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                border-bottom: none;
+            }
+
+            .tab {
+                padding: 10px 12px;
+                font-size: 13px;
+                text-align: center;
+                border-radius: 8px;
+                background: rgba(255,255,255,0.9);
+                border-bottom: none;
+            }
+
+            .tab.active {
+                background: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
         }
     </style>
@@ -420,16 +446,16 @@
             </div>
 
             <div class="control-group">
-                <label>&nbsp;</label>
+                <label class="spacer">&nbsp;</label>
                 <button id="now-btn">Now</button>
             </div>
 
             <div class="control-group">
-                <label>&nbsp;</label>
+                <label class="spacer">&nbsp;</label>
                 <button id="load-btn">Load Transits</button>
             </div>
 
-            <div class="control-group" style="margin-left: 20px;">
+            <div class="control-group offset">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="show-houses" style="width: 18px; height: 18px; cursor: pointer;">
                     Show Houses
@@ -457,6 +483,8 @@
             <button class="tab active" data-tab="dashboard">Daily Dashboard</button>
             <button class="tab" data-tab="scanner">Transit Scanner</button>
             <button class="tab" data-tab="compare">Compare Charts</button>
+            <button class="tab" data-tab="journal">Transit Journal</button>
+            <button class="tab" data-tab="progressions">Progressions</button>
         </div>
 
         <div id="dashboard-tab" class="tab-content active">
@@ -483,7 +511,35 @@
                         <input type="date" id="scan-end">
                     </div>
                     <div class="control-group">
-                        <label>&nbsp;</label>
+                        <label for="scan-planet">Transiting</label>
+                        <select id="scan-planet">
+                            <option value="" selected>All planets</option>
+                            <option value="Sun">Sun</option>
+                            <option value="Moon">Moon</option>
+                            <option value="Mercury">Mercury</option>
+                            <option value="Venus">Venus</option>
+                            <option value="Mars">Mars</option>
+                            <option value="Jupiter">Jupiter</option>
+                            <option value="Saturn">Saturn</option>
+                            <option value="Uranus">Uranus</option>
+                            <option value="Neptune">Neptune</option>
+                            <option value="Pluto">Pluto</option>
+                            <option value="North Node,South Node">Nodes</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="scan-aspect">Aspect</label>
+                        <select id="scan-aspect">
+                            <option value="" selected>All aspects</option>
+                            <option value="Conjunction">Conjunction</option>
+                            <option value="Sextile">Sextile</option>
+                            <option value="Square">Square</option>
+                            <option value="Trine">Trine</option>
+                            <option value="Opposition">Opposition</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="spacer">&nbsp;</label>
                         <button id="scan-btn">Scan Transits</button>
                     </div>
                 </div>
@@ -501,6 +557,92 @@
                 </div>
             </div>
         </div>
+
+        <div id="journal-tab" class="tab-content">
+            <div class="dashboard">
+                <h2 style="margin-bottom: 20px;">Transit Journal</h2>
+                <div class="controls" style="margin-bottom: 20px;">
+                    <div class="control-group">
+                        <label for="journal-chart">Chart</label>
+                        <select id="journal-chart">
+                            <option value="christina">Christina</option>
+                            <option value="julian">Julian</option>
+                            <option value="anna">Anna</option>
+                            <option value="jarrett">Jarrett</option>
+                            <option value="superlunar">Superlunar Design Co.</option>
+                            <option value="davison">Davison (Midpoint)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="journal-start">Start Date</label>
+                        <input type="date" id="journal-start">
+                    </div>
+                    <div class="control-group">
+                        <label for="journal-days">Days</label>
+                        <select id="journal-days">
+                            <option value="7" selected>7 days</option>
+                            <option value="10">10 days</option>
+                            <option value="14">14 days</option>
+                            <option value="21">21 days</option>
+                            <option value="30">30 days</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="spacer">&nbsp;</label>
+                        <button id="journal-btn">Generate Journal</button>
+                    </div>
+                    <div class="control-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="journal-compare-mode" style="width: 18px; height: 18px; cursor: pointer;">
+                            Compare All Charts
+                        </label>
+                    </div>
+                </div>
+                <div id="journal-content">
+                    <p style="color: #666;">Select a chart and date range, then click "Generate Journal" to create a day-by-day transit journal.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="progressions-tab" class="tab-content">
+            <div class="dashboard">
+                <h2 style="margin-bottom: 20px;">Progressions &amp; Solar Arc</h2>
+                <div class="controls" style="margin-bottom: 20px;">
+                    <div class="control-group">
+                        <label for="prog-chart">Chart</label>
+                        <select id="prog-chart">
+                            <option value="christina">Christina</option>
+                            <option value="julian">Julian</option>
+                            <option value="anna">Anna</option>
+                            <option value="jarrett">Jarrett</option>
+                            <option value="superlunar">Superlunar Design Co.</option>
+                            <option value="davison">Davison (Midpoint)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="prog-date">Date</label>
+                        <input type="date" id="prog-date">
+                    </div>
+                    <div class="control-group">
+                        <label for="prog-orb">Orb</label>
+                        <select id="prog-orb">
+                            <option value="1" selected>1°</option>
+                            <option value="0.5">0°30'</option>
+                            <option value="2">2°</option>
+                            <option value="3">3°</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="spacer">&nbsp;</label>
+                        <button id="prog-btn">Calculate</button>
+                    </div>
+                </div>
+                <div id="progressions-content">
+                    <p style="color: #666;">Pick a chart and a date to see the progressed chart, the progressed Moon's cycle, and solar arc directions.</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -508,18 +650,52 @@
             ? 'http://localhost:5000'
             : '';
 
+        // Everything here runs on Pacific time, which is what the backend
+        // reads and what the Time (Pacific) field says. toISOString() would
+        // give the UTC date instead - already tomorrow after 5pm Pacific, so
+        // an evening visit loaded the next day's transits.
+        function pacificParts(date) {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Los_Angeles',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+            }).formatToParts(date);
+
+            const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+            return {
+                date: `${value.year}-${value.month}-${value.day}`,
+                time: `${value.hour}:${value.minute}`
+            };
+        }
+
+        function pacificDate(date) {
+            return pacificParts(date).date;
+        }
+
+        function pacificLabel(dateString) {
+            // "PDT" or "PST" for a date - Pacific runs on daylight time from
+            // March to November, so a fixed "PST" is wrong most of the year
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Los_Angeles', timeZoneName: 'short'
+            }).formatToParts(new Date(dateString + 'T20:00:00Z'));
+
+            const zone = parts.find(part => part.type === 'timeZoneName');
+            return zone ? zone.value : 'Pacific';
+        }
+
         // Initialize date and time inputs
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        const currentTime = now.toTimeString().slice(0, 5);
+        const nowPacific = pacificParts(new Date());
+        const today = nowPacific.date;
 
         document.getElementById('date-input').value = today;
-        document.getElementById('time-input').value = currentTime;
+        document.getElementById('time-input').value = nowPacific.time;
         document.getElementById('scan-start').value = today;
+        document.getElementById('journal-start').value = today;
+        document.getElementById('prog-date').value = today;
 
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 120);
-        document.getElementById('scan-end').value = endDate.toISOString().split('T')[0];
+        document.getElementById('scan-end').value = pacificDate(endDate);
 
         // Tab handling
         document.querySelectorAll('.tab').forEach(tab => {
@@ -534,13 +710,15 @@
 
         // Event listeners
         document.getElementById('now-btn').addEventListener('click', () => {
-            const now = new Date();
-            document.getElementById('date-input').value = now.toISOString().split('T')[0];
-            document.getElementById('time-input').value = now.toTimeString().slice(0, 5);
+            const pacific = pacificParts(new Date());
+            document.getElementById('date-input').value = pacific.date;
+            document.getElementById('time-input').value = pacific.time;
         });
 
         document.getElementById('load-btn').addEventListener('click', loadDashboard);
         document.getElementById('scan-btn').addEventListener('click', scanTransits);
+        document.getElementById('journal-btn').addEventListener('click', loadJournal);
+        document.getElementById('prog-btn').addEventListener('click', loadProgressions);
 
         // Toggle houses - re-render views when changed
         document.getElementById('show-houses').addEventListener('change', () => {
@@ -593,7 +771,13 @@
             clearError();
 
             try {
-                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}&min_significance=MEDIUM`);
+                // Narrow by what a transit is, never by how important
+                // something decided it was
+                const planet = document.getElementById('scan-planet').value;
+                const aspect = document.getElementById('scan-aspect').value;
+                const filters = (planet ? `&planets=${encodeURIComponent(planet)}` : '')
+                    + (aspect ? `&aspects=${encodeURIComponent(aspect)}` : '');
+                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}${filters}`);
                 if (!response.ok) throw new Error('Failed to scan transits');
 
                 const data = await response.json();
@@ -626,16 +810,12 @@
         function renderDashboard(data) {
             // Get chart name for plain text
             const chartSelect = document.getElementById('chart-select');
-            data.chart_name = chartSelect.options[chartSelect.selectedIndex].text;
+            // The API's full chart name heads the copy/paste text; the picker
+            // keeps its own short label
+            data.chart_name = data.chart_name || chartSelect.options[chartSelect.selectedIndex].text;
             lastDashboardData = data;
 
             const container = document.getElementById('dashboard-content');
-
-            // Calculate stats
-            const critical = data.aspects.filter(a => a.significance === 'CRITICAL').length;
-            const high = data.aspects.filter(a => a.significance === 'HIGH').length;
-            const challenging = data.aspects.filter(a => a.is_challenging).length;
-            const supportive = data.aspects.filter(a => !a.is_challenging).length;
 
             // Generate plain text client-side (respects toggle state)
             const plainText = generateDashboardPlainText(data);
@@ -645,18 +825,6 @@
                     <div class="stat-card">
                         <div class="stat-value">${data.total_aspects}</div>
                         <div class="stat-label">Total Aspects</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${critical}</div>
-                        <div class="stat-label">Critical</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${high}</div>
-                        <div class="stat-label">High Impact</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${challenging} / ${supportive}</div>
-                        <div class="stat-label">Challenge / Support</div>
                     </div>
                 </div>
 
@@ -720,20 +888,12 @@
                 ? '<span class="badge applying">→ Applying</span>'
                 : '<span class="badge separating">← Separating</span>';
 
-            const typeBadge = aspect.is_challenging
-                ? '<span class="badge challenging">⚠️ Challenging</span>'
-                : '<span class="badge supportive">✓ Supportive</span>';
+            // Exactness, as the backend describes it: only a true 0°00' hit
+            // counts, and (Rx) means the hit happens while retrograde
+            const exactInfo = aspect.exact_summary || 'N/A';
 
-            // Format exact date/time
-            let exactInfo = 'N/A';
-            if (aspect.exact_datetime) {
-                const [date, time] = aspect.exact_datetime.split(' ');
-                const dateObj = new Date(date + 'T' + time);
-                const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                exactInfo = `${date} ~${timeStr}`;
-            } else if (aspect.exact_date) {
-                exactInfo = `~${aspect.exact_date}`;
-            }
+            // (Rx) / (SR) / (SD) for the transiting planet
+            const motionMark = aspect.motion_marker ? ` ${aspect.motion_marker}` : '';
 
             // House info for title
             const houseInfo = (showHouses && aspect.transit_house) ? ` (${getOrdinal(aspect.transit_house)} house)` : '';
@@ -745,15 +905,14 @@
             const exactDateForTimeline = aspect.exact_date || aspect.exact_datetime?.split(' ')[0] || '';
 
             return `
-                <div class="aspect-card ${aspect.significance.toLowerCase()}" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}', '${exactDateForTimeline}')">
+                <div class="aspect-card" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}', '${exactDateForTimeline}')">
                     <div class="aspect-header">
                         <div class="aspect-title">
-                            ${aspect.transit_planet} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
+                            ${aspect.transit_planet}${motionMark} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
                             <span style="font-size: 12px; color: #999; margin-left: 8px;">▼ Click for timeline</span>
                         </div>
                         <div class="aspect-badges">
                             ${directionBadge}
-                            ${typeBadge}
                         </div>
                     </div>
                     <div class="aspect-details">
@@ -771,10 +930,6 @@
                         <div class="detail-item">
                             <span class="detail-label">Exact</span>
                             <span class="detail-value">${exactInfo}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Significance</span>
-                            <span class="detail-value">${aspect.significance}</span>
                         </div>
                     </div>
                     <div class="timeline-container" id="${aspectId}-timeline">
@@ -795,7 +950,8 @@
             }
 
             // Generate plain text for scanner
-            const chartName = document.getElementById('chart-select').options[document.getElementById('chart-select').selectedIndex].text;
+            const chartName = data.chart_name
+                || document.getElementById('chart-select').options[document.getElementById('chart-select').selectedIndex].text;
             const scannerPlainText = generateScannerPlainText(data, chartName);
 
             const html = `
@@ -832,20 +988,26 @@
                             <div class="detail-item">
                                 <span class="detail-label">Exits 3° Orb</span>
                                 <span class="detail-value">${transit.exit_date || 'N/A'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Significance</span>
-                                <span class="detail-value">${transit.significance}</span>
                             </div>`;
 
+                        // Direction changes while in orb - without these the
+                        // planet keeps one direction across the whole window
+                        if (transit.stations && transit.stations.length > 0) {
+                            details += `
+                            <div class="detail-item">
+                                <span class="detail-label">Direction Changes</span>
+                                <span class="detail-value">${formatStations(transit.stations)}</span>
+                            </div>`;
+                        }
+
+                        details += `
+`;
+
                         return `
-                        <div class="aspect-card ${transit.significance.toLowerCase()}">
+                        <div class="aspect-card">
                             <div class="aspect-header">
                                 <div class="aspect-title">
-                                    ${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point}
-                                </div>
-                                <div class="aspect-badges">
-                                    ${transit.is_challenging ? '<span class="badge challenging">⚠️ Challenging</span>' : '<span class="badge supportive">✓ Supportive</span>'}
+                                    ${transit.exact_date}${transit.exact_retrograde ? ' (Rx)' : ''}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point}
                                 </div>
                             </div>
                             <div class="aspect-details">
@@ -864,13 +1026,16 @@
             let lines = [`Upcoming Exact Transits: ${chartName}`, `${data.start_date} to ${data.end_date}`, ''];
 
             data.transits.forEach(transit => {
-                const type = transit.is_challenging ? 'Challenging' : 'Supportive';
-                let line = `${transit.exact_date}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point} [${transit.significance}] (${type})`;
+                const rx = transit.exact_retrograde ? ' (Rx)' : '';
+                let line = `${transit.exact_date}${rx}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point}`;
                 if (showEntryDates && transit.entry_date) {
                     line += ` | Enters 3° on ${transit.entry_date}`;
                 }
                 if (transit.exit_date) {
                     line += ` | Exits 3° on ${transit.exit_date}`;
+                }
+                if (transit.stations && transit.stations.length > 0) {
+                    line += ` | ${formatStations(transit.stations)}`;
                 }
                 lines.push(line);
             });
@@ -884,7 +1049,7 @@
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             const time12hr = formatTime12hr(data.time || '12:00');
 
-            let lines = [dateFormatted + ' Transits at ' + time12hr + ' PST', data.chart_name || '', ''];
+            let lines = [dateFormatted + ' Transits at ' + time12hr + ' ' + pacificLabel(data.date), data.chart_name || '', ''];
 
             data.aspects.forEach(aspect => {
                 const direction = aspect.is_applying ? 'applying' : 'separating';
@@ -893,15 +1058,13 @@
                 const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
 
                 const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
-                let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                const motionMark = aspect.motion_marker ? ' ' + aspect.motion_marker : '';
+                let line = aspect.transit_planet + motionMark + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
-                if (aspect.exact_datetime && aspect.is_applying) {
-                    const [date, time] = aspect.exact_datetime.split(' ');
-                    const exactDate = new Date(date + 'T' + time);
-                    const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                    line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
-                } else if (aspect.exact_date && aspect.is_applying) {
-                    line += ' | Exact ~' + aspect.exact_date;
+                // Exactness comes from the backend so the app and the copy text
+                // never disagree about what counts as exact
+                if (aspect.exact_summary) {
+                    line += ' | ' + aspect.exact_summary;
                 }
 
                 lines.push(line);
@@ -931,7 +1094,7 @@
             const comparePlainText = generateComparePlainText(data);
 
             const html = `
-                <p style="color: #666; margin-bottom: 20px;">Transit comparison for ${data.date} at ${data.time || '12:00'} PST</p>
+                <p style="color: #666; margin-bottom: 20px;">Transit comparison for ${data.date} at ${data.time || '12:00'} ${pacificLabel(data.date)}</p>
 
                 <div style="margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -949,18 +1112,6 @@
                                 <div class="stat-value">${chart.total_aspects}</div>
                                 <div class="stat-label">Total</div>
                             </div>
-                            <div class="stat-card">
-                                <div class="stat-value">${chart.critical}</div>
-                                <div class="stat-label">Critical</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value">${chart.high}</div>
-                                <div class="stat-label">High</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value">${chart.challenging} / ${chart.supportive}</div>
-                                <div class="stat-label">Challenge / Support</div>
-                            </div>
                         </div>
                         <div class="aspects-list">
                             ${chart.top_aspects.map(aspect => renderAspectCard(aspect)).join('')}
@@ -976,36 +1127,110 @@
             const showHouses = document.getElementById('show-houses').checked;
             const dateObj = new Date(data.date + 'T12:00:00');
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + (data.time || '12:00') + ' PST', ''];
+            const timeStr = data.time || '12:00';
+            const zone = pacificLabel(data.date);
+            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + timeStr + ' ' + zone, ''];
+
+            // Add current planetary positions
+            if (data.planet_positions) {
+                lines.push('==================================================');
+                lines.push('WHERE THE PLANETS ARE IN THE SKY AT ' + timeStr + ' ' + zone);
+                lines.push('==================================================');
+                lines.push('');
+
+                const planetOrder = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                                     'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                                     'North Node', 'South Node'];
+
+                planetOrder.forEach(planet => {
+                    if (data.planet_positions[planet]) {
+                        const p = data.planet_positions[planet];
+                        lines.push('  ' + planet.padEnd(12) + ' - ' + p.degree + '° ' + p.sign);
+                    }
+                });
+                lines.push('');
+            }
 
             Object.entries(data.charts).forEach(([key, chart]) => {
-                lines.push('══════════════════════════════════════════════════');
-                lines.push(chart.name.toUpperCase());
-                lines.push('══════════════════════════════════════════════════');
+                // Natal placements section
+                if (chart.natal_positions) {
+                    lines.push('==================================================');
+                    lines.push(chart.name.toUpperCase() + "'S NATAL PLACEMENTS");
+                    lines.push('==================================================');
+                    lines.push('');
+
+                    const natalOrder = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
+                                        'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
+                                        'North Node', 'South Node', 'Ascendant', 'Midheaven'];
+
+                    natalOrder.forEach(point => {
+                        if (chart.natal_positions[point]) {
+                            const p = chart.natal_positions[point];
+                            lines.push('  ' + point.padEnd(12) + ' - ' + p.degree + '° ' + p.sign);
+                        }
+                    });
+                    lines.push('');
+                }
+
+                // Moon transits section
+                if (chart.moon_info) {
+                    lines.push('==================================================');
+                    lines.push('MOON TRANSITS HAPPENING FOR ' + chart.name.toUpperCase() + ' TODAY');
+                    lines.push('==================================================');
+                    lines.push('');
+
+                    const moon = chart.moon_info;
+                    let moonLine = 'Moon in ' + moon.sign + ' (House ' + moon.house + ')';
+                    if (moon.end_sign) {
+                        moonLine += ', enters ' + moon.end_sign;
+                    }
+                    lines.push(moonLine);
+
+                    if (moon.aspects && moon.aspects.length > 0) {
+                        moon.aspects.forEach(asp => {
+                            if (asp.sign_change) {
+                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon enters ' + asp.sign_change);
+                            } else if (asp.natal_point) {
+                                lines.push('  ' + asp.time_12hr.padEnd(8) + ' Moon ' + asp.aspect_word + ' ' + chart.name + "'s natal " + asp.natal_point);
+                            }
+                        });
+                    }
+                    lines.push('');
+                }
+
+                // Planetary transits section
+                lines.push('==================================================');
+                lines.push('PLANETARY TRANSITS TO ' + chart.name.toUpperCase() + "'S NATAL PLACEMENTS");
+                lines.push('==================================================');
                 lines.push('');
 
                 if (chart.top_aspects && chart.top_aspects.length > 0) {
-                    chart.top_aspects.forEach(aspect => {
-                        const direction = aspect.is_applying ? 'applying' : 'separating';
-                        const orbDeg = Math.floor(aspect.orb);
-                        const orbMin = Math.floor((aspect.orb % 1) * 60);
-                        const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
+                    // Filter out Moon aspects since we show them above
+                    const nonMoonAspects = chart.top_aspects.filter(a => a.transit_planet !== 'Moon');
 
-                        // Include house info if toggle is on
-                        const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
-                        let line = aspect.transit_planet + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
+                    if (nonMoonAspects.length > 0) {
+                        nonMoonAspects.forEach(aspect => {
+                            const direction = aspect.is_applying ? 'applying' : 'separating';
+                            const orbDeg = Math.floor(aspect.orb);
+                            const orbMin = Math.floor((aspect.orb % 1) * 60);
+                            const orbStr = orbDeg + '°' + orbMin.toString().padStart(2, '0') + "'";
 
-                        if (aspect.exact_datetime && aspect.is_applying) {
-                            const [date, time] = aspect.exact_datetime.split(' ');
-                            const exactDate = new Date(date + 'T' + time);
-                            const timeStr = exactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                            line += ' | Exact ' + date + ' ~' + timeStr + ' PST';
-                        } else if (aspect.exact_date && aspect.is_applying) {
-                            line += ' | Exact ~' + aspect.exact_date;
-                        }
+                            // Include house info if toggle is on
+                            const houseInfo = (showHouses && aspect.transit_house) ? ' (' + getOrdinal(aspect.transit_house) + ' house)' : '';
+                            const motionMark = aspect.motion_marker ? ' ' + aspect.motion_marker : '';
+                            let line = aspect.transit_planet + motionMark + ' in ' + (aspect.transit_sign || '') + houseInfo + ' ' + getAspectWord(aspect.aspect) + ' ' + chart.name + "'s natal " + aspect.natal_point + ' in ' + (aspect.natal_sign || '') + ' at ' + orbStr + ' ' + direction;
 
-                        lines.push(line);
-                    });
+                            // Exactness comes from the backend so the app and
+                            // the copy text never disagree about what is exact
+                            if (aspect.exact_summary) {
+                                line += ' | ' + aspect.exact_summary;
+                            }
+
+                            lines.push(line);
+                        });
+                    } else {
+                        lines.push('No significant non-Moon aspects');
+                    }
                 } else {
                     lines.push('No significant aspects');
                 }
@@ -1013,6 +1238,13 @@
             });
 
             return lines.join('\n');
+        }
+
+        function formatStations(stations) {
+            // "goes Rx" / "stations direct" with the date it happens
+            return stations
+                .map(station => (station.type === 'SR' ? 'goes Rx ' : 'stations direct ') + station.date)
+                .join(', ');
         }
 
         function getAspectWord(aspectName) {
@@ -1144,13 +1376,45 @@
                 });
             }
 
-            // Exact point (use exact_datetime if available from precise mode)
-            if (timeline.exact_datetime || timeline.exact_date) {
+            // Every real perfection - a retrograde series has three. Exact
+            // means the aspect reached 0°00', never just a station.
+            const exactHits = timeline.exact_dates && timeline.exact_dates.length > 0
+                ? timeline.exact_dates
+                : (timeline.exact_date ? [{
+                    datetime: timeline.exact_datetime || timeline.exact_date,
+                    orb: timeline.exact_orb,
+                    retrograde: timeline.exact_retrograde
+                }] : []);
+
+            exactHits.forEach(hit => {
                 timelineItems.push({
-                    label: 'EXACT',
-                    date: timeline.exact_datetime || timeline.exact_date,
+                    label: hit.retrograde ? 'EXACT (Rx)' : 'EXACT',
+                    date: hit.datetime || hit.date,
                     type: 'exact',
-                    orb: timeline.exact_orb
+                    orb: hit.orb
+                });
+            });
+
+            // Direction changes inside the window. Without one listed, the
+            // planet holds the same direction across every date shown.
+            (timeline.stations || []).forEach(station => {
+                timelineItems.push({
+                    label: station.type === 'SR' ? 'Goes retrograde' : 'Stations direct',
+                    date: station.datetime || station.date,
+                    type: 'station',
+                    orb: station.orb
+                });
+            });
+
+            // Applied but turned back without reaching 0°00'
+            if (!timeline.perfects && timeline.closest_approach) {
+                timelineItems.push({
+                    label: timeline.closest_approach.is_station
+                        ? 'Closest approach (stations, never exact)'
+                        : 'Closest approach (never exact)',
+                    date: timeline.closest_approach.datetime || timeline.closest_approach.date,
+                    type: 'closest',
+                    orb: timeline.closest_approach.orb
                 });
             }
 
@@ -1177,7 +1441,10 @@
                 });
             }
 
-            let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline (PST)</h4>';
+            // Show everything in the order it happens
+            timelineItems.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+            let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline (Pacific)</h4>';
 
             timelineItems.forEach(item => {
                 const markerClass = item.type === 'exact' ? 'timeline-marker exact' : 'timeline-marker';
@@ -1201,7 +1468,7 @@
                     dateFormatted = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 }
 
-                const orbInfo = item.orb !== undefined ? ` (${item.orb.toFixed(4)}°)` : '';
+                const orbInfo = (item.orb !== undefined && item.orb !== null) ? ` (${item.orb.toFixed(4)}°)` : '';
 
                 html += `
                     <div class="timeline-item">
@@ -1216,6 +1483,195 @@
 
             html += '</div>';
             container.innerHTML = html;
+        }
+
+        // Transit Journal functions
+        let lastJournalData = null;
+
+        // Charts included when comparing journals
+        const JOURNAL_COMPARE_CHARTS = ['christina', 'julian', 'davison'];
+
+        async function fetchWithTimeout(url, timeoutMs = 120000) {
+            // A free instance can be asleep, so allow a long first response
+            // rather than letting the browser hang or give up early
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+            try {
+                return await fetch(url, { signal: controller.signal });
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function fetchJournal(chart, startDate, days) {
+            const url = `${API_URL}/api/journal/${chart}?start_date=${startDate}&days=${days}`;
+
+            // One retry: the first request to a sleeping instance often dies
+            // while it wakes up, and the second one lands
+            for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                    const response = await fetchWithTimeout(url);
+                    if (response.ok) return await response.json();
+                    if (attempt === 1) throw new Error(`Server returned ${response.status}`);
+                } catch (error) {
+                    if (attempt === 1) {
+                        throw new Error(error.name === 'AbortError'
+                            ? 'The journal took too long to generate. Try fewer days.'
+                            : error.message);
+                    }
+                }
+            }
+        }
+
+        async function loadJournal() {
+            const chart = document.getElementById('journal-chart').value;
+            const startDate = document.getElementById('journal-start').value;
+            const days = document.getElementById('journal-days').value;
+            const compareMode = document.getElementById('journal-compare-mode').checked;
+
+            showLoading('journal-content');
+            clearError();
+
+            try {
+                if (compareMode) {
+                    // One request per chart, rendered as each arrives: three
+                    // short requests instead of one long one that can time out
+                    const journals = [];
+
+                    for (let i = 0; i < JOURNAL_COMPARE_CHARTS.length; i++) {
+                        setJournalProgress(i, JOURNAL_COMPARE_CHARTS.length, journals);
+                        journals.push(await fetchJournal(JOURNAL_COMPARE_CHARTS[i], startDate, days));
+                    }
+
+                    const data = {
+                        start_date: startDate,
+                        days: parseInt(days),
+                        charts: journals.reduce((all, journal) => {
+                            all[journal.chart_key] = journal;
+                            return all;
+                        }, {}),
+                        combined_plain_text: journals.map(j => j.plain_text).join('\n\n\n')
+                    };
+
+                    lastJournalData = data;
+                    renderJournal(data, true);
+                } else {
+                    const data = await fetchJournal(chart, startDate, days);
+                    lastJournalData = data;
+                    renderJournal(data, false);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function setJournalProgress(done, total, journals) {
+            const container = document.getElementById('journal-content');
+            const finished = journals.map(j => j.chart_name).join(', ');
+            container.innerHTML = `
+                <div class="loading">
+                    <p>Generating journal ${done + 1} of ${total}...</p>
+                    ${finished ? `<p style="color: #666; font-size: 12px;">Done: ${finished}</p>` : ''}
+                </div>
+            `;
+        }
+
+        async function loadProgressions() {
+            const chart = document.getElementById('prog-chart').value;
+            const date = document.getElementById('prog-date').value;
+            const orb = document.getElementById('prog-orb').value;
+
+            showLoading('progressions-content');
+            clearError();
+
+            try {
+                const response = await fetchWithTimeout(
+                    `${API_URL}/api/progressions/${chart}?date=${date}&orb=${orb}`);
+                if (!response.ok) throw new Error(`Server returned ${response.status}`);
+
+                renderProgressions(await response.json());
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderProgressions(data) {
+            const container = document.getElementById('progressions-content');
+            const arcDegrees = Math.floor(data.directed.arc);
+            const arcMinutes = Math.floor((data.directed.arc % 1) * 60);
+            const moon = data.progressed_moon;
+
+            container.innerHTML = `
+                <div class="summary">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.years_elapsed.toFixed(1)}</div>
+                        <div class="stat-label">Years of Life</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${arcDegrees}°${String(arcMinutes).padStart(2, '0')}'</div>
+                        <div class="stat-label">Solar Arc</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="font-size: 20px;">${moon.degree}°${String(moon.minute).padStart(2, '0')}' ${moon.sign}</div>
+                        <div class="stat-label">Progressed Moon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="font-size: 20px;">${moon.phase}</div>
+                        <div class="stat-label">Progressed Phase</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>Plain Text (Copy &amp; Paste)</h3>
+                        <button onclick="copyProgressionsText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                    </div>
+                    <pre id="progressions-text-output" style="background: #f5f5f5; padding: 20px; border-radius: 8px; font-size: 12px; font-family: 'Courier New', monospace; white-space: pre-wrap; overflow-x: auto; max-height: 600px; overflow-y: auto; line-height: 1.5;">${escapeHtml(data.plain_text)}</pre>
+                </div>
+            `;
+        }
+
+        function copyProgressionsText(btn) {
+            copyTextToClipboard(document.getElementById('progressions-text-output').innerText, btn);
+        }
+
+        function renderJournal(data, compareMode) {
+            const container = document.getElementById('journal-content');
+
+            let plainText;
+            let title;
+
+            if (compareMode) {
+                plainText = data.combined_plain_text;
+                title = 'Combined Transit Journals';
+            } else {
+                plainText = data.plain_text;
+                title = `Transit Journal - ${data.chart_name}`;
+            }
+
+            const html = `
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>${title}</h3>
+                        <button onclick="copyJournalText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                    </div>
+                    <pre id="journal-text-output" style="background: #f5f5f5; padding: 20px; border-radius: 8px; font-size: 12px; font-family: 'Courier New', monospace; white-space: pre-wrap; overflow-x: auto; max-height: 600px; overflow-y: auto; line-height: 1.5;">${escapeHtml(plainText)}</pre>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function copyJournalText(btn) {
+            const text = document.getElementById('journal-text-output').innerText;
+            copyTextToClipboard(text, btn);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
