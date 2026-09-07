@@ -152,6 +152,28 @@ for planet in ['Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter']:
 check('progressed planets agree with the Keplerian model', worst_model < 15,
       f'(worst {worst_model:.1f} arc minutes)')
 
+print("\nAgreement with Time Nomad")
+print("-" * 72)
+# Values read off the Davison progressed chart in Time Nomad for 2027-01-01.
+# The progressed Sun pins the solar arc (the arc is defined as its distance
+# from the natal Sun), and the MC pins how the angles are advanced - the RA
+# based methods land over a degree away, so this also fixes the method.
+TIME_NOMAD = {'date': '2027-01-01', 'sun': 16 + 31 / 60, 'mc': 17 + 19 / 60}
+
+reference_jd = em.get_julian_day(TIME_NOMAD['date'], '12:00', 'America/Los_Angeles')
+their_sun = pc.progressed_body('davison', 'Sun')(reference_jd)['longitude'] % 30
+their_mc = (pc.natal_longitude('davison', 'MC')
+            + pc.solar_arc_at('davison', reference_jd)) % 30
+
+check('progressed Sun matches Time Nomad',
+      abs(their_sun - TIME_NOMAD['sun']) * 60 < 2,
+      f"(ours {their_sun:.4f}°, theirs {TIME_NOMAD['sun']:.4f}°, "
+      f"{(their_sun - TIME_NOMAD['sun']) * 60:+.2f} arc minutes)")
+check('progressed MC matches Time Nomad, so solar arc in longitude is the method',
+      abs(their_mc - TIME_NOMAD['mc']) * 60 < 2,
+      f"(ours {their_mc:.4f}°, theirs {TIME_NOMAD['mc']:.4f}°, "
+      f"{(their_mc - TIME_NOMAD['mc']) * 60:+.2f} arc minutes)")
+
 print("\nEvery chart progresses, including the Davison")
 print("-" * 72)
 for chart_key in NATAL_CHARTS:

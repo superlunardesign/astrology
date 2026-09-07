@@ -190,9 +190,13 @@ progressed to natal, progressed Moon to progressed chart, and directed to natal
 Default orb is 1°; search windows scale to how fast the point moves, and never
 reach back before the chart's own birth moment.
 
-Progressed **angles** have no single agreed method. They currently advance by
-solar arc; `ProgressionCalculator(tc, angle_method='naibod')` switches to the
-Naibod rate. Directed angles are unambiguous (natal plus the arc) either way.
+Progressed **angles** have no single agreed method. They advance by solar arc in
+longitude, which was confirmed against Time Nomad: for the Davison on
+2027-01-01 it gives a progressed MC of 17°18.6' Sagittarius against Time
+Nomad's 17°19', while Naibod lands 12' away and the RA-based methods over a
+degree. `ProgressionCalculator(tc, angle_method='naibod')` switches if ever
+needed. test_progressions.py holds those observed values, so a change that
+breaks the agreement gets caught.
 
 ### Transit Journal
 Day-by-day reads over 7, 10, 14, 21 or 30 days. Each day lists the Moon's sign, ingress
