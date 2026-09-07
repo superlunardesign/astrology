@@ -536,6 +536,15 @@
                         <input type="date" id="scan-end">
                     </div>
                     <div class="control-group">
+                        <label for="scan-significance">Include</label>
+                        <select id="scan-significance">
+                            <option value="LOW" selected>All transits</option>
+                            <option value="MEDIUM">Medium and up</option>
+                            <option value="HIGH">High and up</option>
+                            <option value="CRITICAL">Critical only</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
                         <label class="spacer">&nbsp;</label>
                         <button id="scan-btn">Scan Transits</button>
                     </div>
@@ -726,7 +735,10 @@
             clearError();
 
             try {
-                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}&min_significance=MEDIUM`);
+                // Default is every transit - filtering to MEDIUM hid the
+                // faster planets' hits entirely, with no way to ask for them
+                const significance = document.getElementById('scan-significance').value;
+                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}&min_significance=${significance}`);
                 if (!response.ok) throw new Error('Failed to scan transits');
 
                 const data = await response.json();
