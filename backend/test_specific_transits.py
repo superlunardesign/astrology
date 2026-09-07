@@ -21,11 +21,11 @@ print(f"Total aspects found: {dashboard['total_aspects']}")
 
 # Find and display specific transits mentioned
 print("\n" + "="*80)
-print("CRITICAL TRANSITS TO WATCH:")
+print("CLOSEST TRANSITS:")
 print("="*80)
 
-for aspect in dashboard['aspects']:
-    if aspect['significance'] == 'CRITICAL':
+for aspect in dashboard['aspects'][:8]:
+    if True:
         direction = "→ APPLYING" if aspect['is_applying'] else "← SEPARATING"
         print(f"\n{aspect['transit_planet']} {aspect['aspect_symbol']} {aspect['natal_point']}")
         print(f"  Current orb: {aspect['orb']:.2f}°")
@@ -70,12 +70,9 @@ print("="*80)
 for aspect in dashboard['aspects']:
     if aspect['transit_planet'] == 'Saturn':
         direction = "→ APPLYING" if aspect['is_applying'] else "← SEPARATING"
-        challenge = "⚠️ CHALLENGING" if aspect['is_challenging'] else "✓ SUPPORTIVE"
         print(f"\n{aspect['transit_planet']} {aspect['aspect_symbol']} {aspect['natal_point']}")
         print(f"  Current orb: {aspect['orb']:.2f}°")
         print(f"  Direction: {direction}")
-        print(f"  Type: {challenge}")
-        print(f"  Significance: {aspect['significance']}")
         print(f"  Strength: {aspect['strength']:.1f}%")
         print(f"  Exactness: {aspect['exact_summary']}")
 
@@ -106,13 +103,11 @@ upcoming = tc.scan_future_transits(
     'julian',
     today,
     end_date,
-    min_significance='MEDIUM'
 )
 
-print(f"\nFound {len(upcoming)} upcoming significant transits:")
+print(f"\nFound {len(upcoming)} upcoming transits:")
 for i, transit in enumerate(upcoming[:10], 1):
-    challenge = "⚠️" if transit['is_challenging'] else "✓"
-    print(f"{i}. {transit['exact_date']}: {transit['transit_planet']} {transit['aspect']} {transit['natal_point']} "
-          f"{challenge} [{transit['significance']}]")
+    print(f"{i}. {transit['exact_date']}: {transit['transit_planet']} "
+          f"{transit['aspect']} {transit['natal_point']}")
 
 print("\n" + "="*80)

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import pytz
 from ephemeris_manager import EphemerisManager
 from natal_charts import NatalChartManager
-from config import ASPECTS, PLANETS, CRITICAL_TRANSITS, HIGH_TRANSITS, MEDIUM_TRANSITS
+from config import ASPECTS, PLANETS
 import math
 
 # An aspect counts as exact only at 0°00'. This tolerance (1 arc minute)
@@ -1044,80 +1044,6 @@ class TransitCalculator:
             'next_exact_after_window': next_after
         }
 
-    def rate_aspect_significance(self, transit_planet, natal_point, aspect_name):
-        """
-        Rate the significance of an aspect
-
-        Args:
-            transit_planet: Name of transiting planet
-            natal_point: Name of natal planet/point
-            aspect_name: Type of aspect
-
-        Returns:
-            Tuple: (significance_level, is_challenging)
-        """
-        # Determine if aspect is challenging based on aspect type AND planet
-        is_challenging = self.is_aspect_challenging(transit_planet, aspect_name)
-
-        # Check if it's a critical transit
-        for t_planet, n_points in CRITICAL_TRANSITS:
-            if transit_planet == t_planet and natal_point in n_points:
-                return ('CRITICAL', is_challenging)
-
-        # Check if it's a high significance transit
-        for t_planet, n_points in HIGH_TRANSITS:
-            if transit_planet == t_planet and natal_point in n_points:
-                return ('HIGH', is_challenging)
-
-        # Check if it's a medium significance transit
-        for t_planet, n_points in MEDIUM_TRANSITS:
-            if transit_planet == t_planet and natal_point in n_points:
-                return ('MEDIUM', is_challenging)
-
-        # Default to low significance
-        return ('LOW', is_challenging)
-
-    def is_aspect_challenging(self, transit_planet, aspect_name):
-        """
-        Determine if an aspect is challenging based on planet and aspect type
-
-        Rules:
-        - Squares and Oppositions are always challenging
-        - Sextiles and Trines are always supportive
-        - Conjunctions depend on the transiting planet:
-            SUPPORTIVE: Venus, Jupiter, North Node
-            CHALLENGING: Saturn, Pluto, South Node, Mars
-            TRANSFORMATIVE (challenging): Uranus, Neptune
-            NEUTRAL: Sun, Moon, Mercury (depends on context, default supportive)
-        """
-        # Squares and Oppositions are always challenging
-        if aspect_name in ['Square', 'Opposition']:
-            return True
-
-        # Sextiles and Trines are always supportive
-        if aspect_name in ['Sextile', 'Trine']:
-            return False
-
-        # Conjunctions depend on the planet
-        if aspect_name == 'Conjunction':
-            # Supportive conjunctions
-            if transit_planet in ['Venus', 'Jupiter', 'North Node']:
-                return False
-
-            # Challenging conjunctions
-            if transit_planet in ['Saturn', 'Pluto', 'South Node', 'Mars']:
-                return True
-
-            # Transformative (treat as challenging - can go either way but often intense)
-            if transit_planet in ['Uranus', 'Neptune']:
-                return True
-
-            # Neutral planets (Sun, Moon, Mercury) - default to supportive
-            return False
-
-        # Default
-        return False
-
     def get_sign_from_longitude(self, longitude):
         """Get zodiac sign name from longitude"""
         signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
@@ -1262,16 +1188,6 @@ class TransitCalculator:
             Dictionary with all aspects and metadata
         """
         aspects = self.find_aspects(chart_key, date_str, max_orb, time_str, timezone)
-
-        # Add significance ratings
-        for aspect in aspects:
-            significance, is_challenging = self.rate_aspect_significance(
-                aspect['transit_planet'],
-                aspect['natal_point'],
-                aspect['aspect']
-            )
-            aspect['significance'] = significance
-            aspect['is_challenging'] = is_challenging
 
         # Find the real perfections (orb 0°00') around each aspect: the last
         # one behind us and the next one ahead. Exactness is the 0°00' crossing
@@ -1570,8 +1486,7 @@ class TransitCalculator:
         return entry_date, exit_date
 
     def scan_future_transits(self, chart_key, start_date, end_date,
-                            transit_planets=None, aspect_types=None,
-                            min_significance='LOW'):
+                            transit_planets=None, aspect_types=None):
         """
         Scan forward to find upcoming exact aspects (optimized version)
 
@@ -1581,7 +1496,6 @@ class TransitCalculator:
             end_date: End date (YYYY-MM-DD)
             transit_planets: List of planets to track (None = all)
             aspect_types: List of aspect types (None = all)
-            min_significance: Minimum significance level
 
         Returns:
             List of upcoming exact aspects
@@ -1591,9 +1505,6 @@ class TransitCalculator:
 
         if aspect_types is None:
             aspect_types = list(ASPECTS.keys())
-
-        significance_order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
-        min_sig_index = significance_order.index(min_significance)
 
         start = datetime.strptime(start_date, '%Y-%m-%d')
         end = datetime.strptime(end_date, '%Y-%m-%d')
@@ -1618,14 +1529,6 @@ class TransitCalculator:
 
                 for aspect_name in aspect_types:
                     aspect_angle = ASPECTS[aspect_name]['angle']
-
-                    # Check significance first to skip low-priority combos
-                    significance, is_challenging = self.rate_aspect_significance(
-                        transit_planet, natal_point, aspect_name
-                    )
-                    sig_index = significance_order.index(significance)
-                    if sig_index > min_sig_index:
-                        continue  # Skip this combination
 
                     # Every real perfection in the range. A planet that stations
                     # short of the aspect never goes exact, so it produces no
@@ -1668,9 +1571,7 @@ class TransitCalculator:
                                     'orb': station['orb']
                                 }
                                 for station in stations
-                            ],
-                            'significance': significance,
-                            'is_challenging': is_challenging
+                            ]
                         })
 
         # Sort by date
@@ -1767,12 +1668,6 @@ class TransitCalculator:
                         timezone=timezone
                     )
 
-                    significance, is_challenging = self.rate_aspect_significance(
-                        aspect['transit_planet'],
-                        aspect['natal_point'],
-                        aspect['aspect']
-                    )
-
                     all_transits[key] = {
                         'transit_planet': aspect['transit_planet'],
                         'natal_point': aspect['natal_point'],
@@ -1785,9 +1680,7 @@ class TransitCalculator:
                         'passes': summary['passes'],
                         'stations': summary['stations'],
                         'leave_3deg': summary['leave'],
-                        'next_exact_after_window': summary['next_exact_after_window'],
-                        'significance': significance,
-                        'is_challenging': is_challenging
+                        'next_exact_after_window': summary['next_exact_after_window']
                     }
 
         # Build natal points being activated with their positions
@@ -1870,8 +1763,6 @@ class TransitCalculator:
                     'orb_value': aspect['orb'],
                     'direction': direction,
                     'marker': aspect.get('motion_marker', ''),
-                    'significance': transit_info['significance'],
-                    'is_challenging': transit_info['is_challenging'],
                     'exact_date': transit_info['exact_date'],
                     'exact_retrograde': exact_today['retrograde'] if exact_today else None
                 }
@@ -2169,4 +2060,4 @@ if __name__ == '__main__':
     for i, aspect in enumerate(dashboard['aspects'][:5]):
         direction = "→" if aspect['is_applying'] else "←"
         print(f"{i+1}. {aspect['transit_planet']} {aspect['aspect_symbol']} {aspect['natal_point']} "
-              f"({aspect['orb']:.2f}° {direction}) [{aspect['significance']}]")
+              f"({aspect['orb']:.2f}° {direction})")

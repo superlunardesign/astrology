@@ -218,22 +218,6 @@
             font-size: 14px;
         }
 
-        .aspect-card.critical {
-            border-left: 4px solid #e74c3c;
-        }
-
-        .aspect-card.high {
-            border-left: 4px solid #f39c12;
-        }
-
-        .aspect-card.medium {
-            border-left: 4px solid #3498db;
-        }
-
-        .aspect-card.low {
-            border-left: 4px solid #95a5a6;
-        }
-
         .aspect-header {
             display: flex;
             justify-content: space-between;
@@ -267,16 +251,6 @@
 
         .badge.separating {
             background: #95a5a6;
-            color: white;
-        }
-
-        .badge.challenging {
-            background: #e74c3c;
-            color: white;
-        }
-
-        .badge.supportive {
-            background: #2ecc71;
             color: white;
         }
 
@@ -536,12 +510,31 @@
                         <input type="date" id="scan-end">
                     </div>
                     <div class="control-group">
-                        <label for="scan-significance">Include</label>
-                        <select id="scan-significance">
-                            <option value="LOW" selected>All transits</option>
-                            <option value="MEDIUM">Medium and up</option>
-                            <option value="HIGH">High and up</option>
-                            <option value="CRITICAL">Critical only</option>
+                        <label for="scan-planet">Transiting</label>
+                        <select id="scan-planet">
+                            <option value="" selected>All planets</option>
+                            <option value="Sun">Sun</option>
+                            <option value="Moon">Moon</option>
+                            <option value="Mercury">Mercury</option>
+                            <option value="Venus">Venus</option>
+                            <option value="Mars">Mars</option>
+                            <option value="Jupiter">Jupiter</option>
+                            <option value="Saturn">Saturn</option>
+                            <option value="Uranus">Uranus</option>
+                            <option value="Neptune">Neptune</option>
+                            <option value="Pluto">Pluto</option>
+                            <option value="North Node,South Node">Nodes</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="scan-aspect">Aspect</label>
+                        <select id="scan-aspect">
+                            <option value="" selected>All aspects</option>
+                            <option value="Conjunction">Conjunction</option>
+                            <option value="Sextile">Sextile</option>
+                            <option value="Square">Square</option>
+                            <option value="Trine">Trine</option>
+                            <option value="Opposition">Opposition</option>
                         </select>
                     </div>
                     <div class="control-group">
@@ -735,10 +728,13 @@
             clearError();
 
             try {
-                // Default is every transit - filtering to MEDIUM hid the
-                // faster planets' hits entirely, with no way to ask for them
-                const significance = document.getElementById('scan-significance').value;
-                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}&min_significance=${significance}`);
+                // Narrow by what a transit is, never by how important
+                // something decided it was
+                const planet = document.getElementById('scan-planet').value;
+                const aspect = document.getElementById('scan-aspect').value;
+                const filters = (planet ? `&planets=${encodeURIComponent(planet)}` : '')
+                    + (aspect ? `&aspects=${encodeURIComponent(aspect)}` : '');
+                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}${filters}`);
                 if (!response.ok) throw new Error('Failed to scan transits');
 
                 const data = await response.json();
@@ -778,12 +774,6 @@
 
             const container = document.getElementById('dashboard-content');
 
-            // Calculate stats
-            const critical = data.aspects.filter(a => a.significance === 'CRITICAL').length;
-            const high = data.aspects.filter(a => a.significance === 'HIGH').length;
-            const challenging = data.aspects.filter(a => a.is_challenging).length;
-            const supportive = data.aspects.filter(a => !a.is_challenging).length;
-
             // Generate plain text client-side (respects toggle state)
             const plainText = generateDashboardPlainText(data);
 
@@ -792,18 +782,6 @@
                     <div class="stat-card">
                         <div class="stat-value">${data.total_aspects}</div>
                         <div class="stat-label">Total Aspects</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${critical}</div>
-                        <div class="stat-label">Critical</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${high}</div>
-                        <div class="stat-label">High Impact</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${challenging} / ${supportive}</div>
-                        <div class="stat-label">Challenge / Support</div>
                     </div>
                 </div>
 
@@ -867,10 +845,6 @@
                 ? '<span class="badge applying">→ Applying</span>'
                 : '<span class="badge separating">← Separating</span>';
 
-            const typeBadge = aspect.is_challenging
-                ? '<span class="badge challenging">⚠️ Challenging</span>'
-                : '<span class="badge supportive">✓ Supportive</span>';
-
             // Exactness, as the backend describes it: only a true 0°00' hit
             // counts, and (Rx) means the hit happens while retrograde
             const exactInfo = aspect.exact_summary || 'N/A';
@@ -888,7 +862,7 @@
             const exactDateForTimeline = aspect.exact_date || aspect.exact_datetime?.split(' ')[0] || '';
 
             return `
-                <div class="aspect-card ${aspect.significance.toLowerCase()}" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}', '${exactDateForTimeline}')">
+                <div class="aspect-card" id="${aspectId}" onclick="toggleTimeline('${aspectId}', '${aspect.transit_planet}', '${aspect.natal_point}', '${aspect.aspect}', '${exactDateForTimeline}')">
                     <div class="aspect-header">
                         <div class="aspect-title">
                             ${aspect.transit_planet}${motionMark} in ${aspect.transit_sign || ''}${houseInfo} ${aspect.aspect_symbol} ${aspect.natal_point}
@@ -896,7 +870,6 @@
                         </div>
                         <div class="aspect-badges">
                             ${directionBadge}
-                            ${typeBadge}
                         </div>
                     </div>
                     <div class="aspect-details">
@@ -914,10 +887,6 @@
                         <div class="detail-item">
                             <span class="detail-label">Exact</span>
                             <span class="detail-value">${exactInfo}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Significance</span>
-                            <span class="detail-value">${aspect.significance}</span>
                         </div>
                     </div>
                     <div class="timeline-container" id="${aspectId}-timeline">
@@ -989,19 +958,13 @@
                         }
 
                         details += `
-                            <div class="detail-item">
-                                <span class="detail-label">Significance</span>
-                                <span class="detail-value">${transit.significance}</span>
-                            </div>`;
+`;
 
                         return `
-                        <div class="aspect-card ${transit.significance.toLowerCase()}">
+                        <div class="aspect-card">
                             <div class="aspect-header">
                                 <div class="aspect-title">
                                     ${transit.exact_date}${transit.exact_retrograde ? ' (Rx)' : ''}: ${transit.transit_planet} ${transit.aspect} ${transit.natal_point}
-                                </div>
-                                <div class="aspect-badges">
-                                    ${transit.is_challenging ? '<span class="badge challenging">⚠️ Challenging</span>' : '<span class="badge supportive">✓ Supportive</span>'}
                                 </div>
                             </div>
                             <div class="aspect-details">
@@ -1105,18 +1068,6 @@
                             <div class="stat-card">
                                 <div class="stat-value">${chart.total_aspects}</div>
                                 <div class="stat-label">Total</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value">${chart.critical}</div>
-                                <div class="stat-label">Critical</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value">${chart.high}</div>
-                                <div class="stat-label">High</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value">${chart.challenging} / ${chart.supportive}</div>
-                                <div class="stat-label">Challenge / Support</div>
                             </div>
                         </div>
                         <div class="aspects-list">

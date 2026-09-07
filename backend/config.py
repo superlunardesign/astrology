@@ -311,26 +311,3 @@ ASPECTS = {
 
 # Angles
 ANGLES = ['Ascendant', 'MC', 'Descendant', 'IC']
-
-# Significance ratings
-CRITICAL_TRANSITS = [
-    ('Pluto', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Saturn', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Uranus', ['Ascendant', 'MC', 'Descendant', 'IC']),
-    ('Neptune', ['Ascendant', 'MC', 'Descendant', 'IC']),
-    ('Pluto', ['Ascendant', 'MC', 'Descendant', 'IC']),
-    ('North Node', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('South Node', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-]
-
-HIGH_TRANSITS = [
-    ('Uranus', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Neptune', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Jupiter', ['Sun', 'Moon', 'Venus']),
-]
-
-MEDIUM_TRANSITS = [
-    ('Jupiter', ['Mercury', 'Mars', 'Ascendant', 'MC']),
-    ('Mars', ['Venus']),
-    ('Venus', ['Sun', 'Moon', 'Venus', 'Mars']),
-]

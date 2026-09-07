@@ -10,7 +10,6 @@ A web application for tracking transits to multiple natal charts over time, with
 - Indicate if APPLYING (→) or SEPARATING (←)
 - Display aspect strength as percentage (100% at exact, 0% at 3°)
 - Show when aspect goes exact
-- Rate significance: CRITICAL, HIGH, MEDIUM, LOW
 - Filter challenging vs supportive aspects
 
 ### Transit Scanner
@@ -113,7 +112,6 @@ Birth data and settings are in `backend/config.py`:
 - Natal chart data (dates, times, locations)
 - Planets to track
 - Aspects and orbs
-- Significance ratings
 
 ## Calculation Details
 
@@ -171,16 +169,16 @@ Birth data and settings are in `backend/config.py`:
   copy/paste output names it in full - "Davison Relationship Chart of Julian &
   Christina" in headings, "the Davison chart's natal Pluto" inline.
 
-### Significance Ratings
-- **CRITICAL**: Outer planets (Pluto, Saturn, Uranus, Neptune) to personal planets or angles
-- **HIGH**: Outer planets to inner planets, Jupiter to Sun/Moon/Venus
-- **MEDIUM**: Venus/Mars to relationship points, Jupiter to other points
-- **LOW**: Fast-moving transits (Sun, Mercury) unless to critical points
+### What the app does not decide
+Nothing is ranked or characterised - no critical/high/medium tiers, no
+challenging or supportive labels. Every aspect within orb is listed on equal
+footing with its own facts: orb, applying or separating, direction of travel,
+and when it perfects. Reading them is yours.
 
 ### Transit Scanner
-Lists every real perfection in a date range. The **Include** filter chooses how
-much to show - it defaults to every transit, since filtering to medium and up
-hides all the Mercury, Venus and Sun hits.
+Lists every real perfection in a date range. Narrow it by transiting planet or
+by aspect if the list gets long - both are facts about the transit, not
+judgements about it.
 
 ### Transit Journal
 Day-by-day reads over 7, 10, 14, 21 or 30 days. Each day lists the Moon's sign, ingress

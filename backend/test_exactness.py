@@ -176,7 +176,7 @@ check('Moon hits are timed to the minute, not bucketed on the hour',
 
 print("\nScanner only lists real perfections")
 print("-" * 72)
-scan = tc.scan_future_transits('christina', '2026-09-04', '2026-12-04', min_significance='LOW')
+scan = tc.scan_future_transits('christina', '2026-09-04', '2026-12-04')
 check('no scanner hit is a station', all(t['exact_orb'] < 0.005 for t in scan),
       f"(worst {max([t['exact_orb'] for t in scan], default=0):.5f}°)")
 check('no Uranus station leaked in',

@@ -152,7 +152,6 @@ def get_dashboard(chart_key):
                 'transit_long': tc.ncm.format_position(aspect['transit_longitude']),
                 'natal_long': tc.ncm.format_position(aspect['natal_longitude']),
                 'direction': '→ APPLYING' if aspect['is_applying'] else '← SEPARATING',
-                'challenge_type': '⚠️ CHALLENGING' if aspect['is_challenging'] else '✓ SUPPORTIVE',
                 'motion': '(Rx) RETROGRADE' if aspect['is_retrograde'] else 'DIRECT',
                 'exactness': aspect['exact_summary']
             }
@@ -232,7 +231,6 @@ def scan_transits(chart_key):
         end_date: End date (default: 180 days from start)
         planets: Comma-separated list of planets (default: all)
         aspects: Comma-separated list of aspects (default: all)
-        min_significance: Minimum significance (CRITICAL, HIGH, MEDIUM, LOW) (default: LOW)
     """
     try:
         start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
@@ -252,17 +250,9 @@ def scan_transits(chart_key):
         aspects_str = request.args.get('aspects')
         aspect_types = aspects_str.split(',') if aspects_str else None
 
-        # Parse significance filter
-        min_significance = request.args.get('min_significance', 'LOW')
-
-        # Validate significance
-        valid_significance = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
-        if min_significance not in valid_significance:
-            return jsonify({'error': f'Invalid significance. Must be one of: {valid_significance}'}), 400
-
         upcoming = tc.scan_future_transits(
             chart_key, start_date, end_date,
-            transit_planets, aspect_types, min_significance
+            transit_planets, aspect_types
         )
 
         return jsonify({
@@ -322,11 +312,6 @@ def compare_charts():
             dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb=3, time_str=time_str, timezone=timezone)
 
             # Summarize
-            critical = sum(1 for a in dashboard['aspects'] if a['significance'] == 'CRITICAL')
-            high = sum(1 for a in dashboard['aspects'] if a['significance'] == 'HIGH')
-            challenging = sum(1 for a in dashboard['aspects'] if a['is_challenging'])
-            supportive = sum(1 for a in dashboard['aspects'] if not a['is_challenging'])
-
             # Get Moon info for this chart
             moon_info = tc._get_moon_daily_info(chart_key, date_str, timezone)
 
@@ -350,10 +335,6 @@ def compare_charts():
             results[chart_key] = {
                 'name': tc.ncm.get_chart(chart_key)['name'],
                 'total_aspects': dashboard['total_aspects'],
-                'critical': critical,
-                'high': high,
-                'challenging': challenging,
-                'supportive': supportive,
                 'top_aspects': dashboard['aspects'],  # All aspects within 3° orb
                 'moon_info': moon_info,
                 'natal_positions': natal_positions
@@ -699,17 +680,11 @@ def get_date_range_summary(chart_key):
             dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb=3)
 
             # Calculate summary metrics
-            critical = sum(1 for a in dashboard['aspects'] if a['significance'] == 'CRITICAL')
-            high = sum(1 for a in dashboard['aspects'] if a['significance'] == 'HIGH')
-            challenging = sum(1 for a in dashboard['aspects'] if a['is_challenging'])
             avg_strength = sum(a['strength'] for a in dashboard['aspects']) / len(dashboard['aspects']) if dashboard['aspects'] else 0
 
             daily_summaries.append({
                 'date': date_str,
                 'total_aspects': dashboard['total_aspects'],
-                'critical': critical,
-                'high': high,
-                'challenging': challenging,
                 'avg_strength': round(avg_strength, 1)
             })
 
