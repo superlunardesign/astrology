@@ -177,6 +177,11 @@ Birth data and settings are in `backend/config.py`:
 - **MEDIUM**: Venus/Mars to relationship points, Jupiter to other points
 - **LOW**: Fast-moving transits (Sun, Mercury) unless to critical points
 
+### Transit Scanner
+Lists every real perfection in a date range. The **Include** filter chooses how
+much to show - it defaults to every transit, since filtering to medium and up
+hides all the Mercury, Venus and Sun hits.
+
 ### Transit Journal
 Day-by-day reads over 7, 10, 14, 21 or 30 days. Each day lists the Moon's sign, ingress
 and every aspect it perfects (timed to the minute from real 0°00' crossings),
