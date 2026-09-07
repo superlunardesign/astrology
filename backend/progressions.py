@@ -434,12 +434,14 @@ class ProgressionCalculator:
             return (f"  {name:12} - {position['degree']:2d}°{position['minute']:02d}' "
                     f"{position['sign']}{marker} (House {position['house']})")
 
-        def aspect_line(item):
+        def aspect_line(item, moving_label, target_label):
+            # Both sides are named, because "Neptune conjunct Neptune" says
+            # nothing about which one moved
             marker = ' (Rx)' if item['retrograde'] else ''
-            line = (f"  {item['moving_point']}{marker} at "
+            line = (f"  {moving_label} {item['moving_point']}{marker} at "
                     f"{item['moving_degree']}°{item['moving_minute']:02d}' {item['moving_sign']} "
-                    f"{item['aspect_word']} {item['target_point']} in {item['target_sign']} "
-                    f"at {self.tc.format_orb(item['orb'])}")
+                    f"{item['aspect_word']} {target_label} {item['target_point']} "
+                    f"in {item['target_sign']} at {self.tc.format_orb(item['orb'])}")
 
             if item['previous_exact']:
                 line += f" | was exact {self._format_date(item['previous_exact']['date'])}"
@@ -490,17 +492,25 @@ class ProgressionCalculator:
             lines.append(f"  {moon['next_phase']['phase']} phase begins "
                          f"{self._format_date(moon['next_phase']['date'])}")
 
-        for title, bucket, empty in [
+        for title, bucket, labels, empty in [
             (f"PROGRESSED TO {chart_short_name.upper()}'S NATAL CHART",
-             'progressed_to_natal', 'No progressed aspects within orb'),
-            ("PROGRESSED MOON TO PROGRESSED CHART",
-             'progressed_to_progressed', 'No progressed-to-progressed aspects within orb'),
+             'progressed_to_natal', ('progressed', 'natal'),
+             'No progressed aspects within orb'),
+            ("PROGRESSED MOON TO THE PROGRESSED CHART",
+             'progressed_to_progressed', ('progressed', 'progressed'),
+             'No progressed-to-progressed aspects within orb'),
             (f"SOLAR ARC DIRECTED TO {chart_short_name.upper()}'S NATAL CHART",
-             'directed_to_natal', 'No directed aspects within orb'),
+             'directed_to_natal', ('directed', 'natal'),
+             'No directed aspects within orb'),
         ]:
-            lines += ["", "=" * 50, title, "=" * 50, ""]
+            moving_label, target_label = labels
+            lines += ["", "=" * 50, title, "=" * 50,
+                      f"The {moving_label} position moves; the {target_label} "
+                      f"position is {'fixed' if target_label == 'natal' else 'moving too'}.",
+                      ""]
             items = aspects[bucket]
-            lines += [aspect_line(item) for item in items] if items else [f"  {empty}"]
+            lines += ([aspect_line(item, moving_label, target_label) for item in items]
+                      if items else [f"  {empty}"])
 
         return "\n".join(lines)
 
