@@ -241,15 +241,31 @@ class TransitCalculator:
     # how close the orb got.
     # ------------------------------------------------------------------
 
+    def position_lookup(self, body):
+        """
+        Turn a body into a function of Julian Day.
+
+        A transiting planet is looked up in the ephemeris; a progressed or
+        directed point passes its own function instead, so everything below -
+        crossings, stations, closest approach - works for those too.
+
+        Returns:
+            Callable(jd) -> {'longitude': float, 'speed': float}
+        """
+        if callable(body):
+            return body
+
+        return lambda jd: self.em.get_planet_position(body, jd)
+
     def get_longitude_at(self, transit_planet, dt, timezone='America/Los_Angeles'):
-        """Longitude of a transiting planet at a specific datetime"""
+        """Longitude of a moving point at a specific datetime"""
         jd = self.em.get_julian_day_from_datetime(dt, timezone)
-        return self.em.get_planet_position(transit_planet, jd)['longitude']
+        return self.position_lookup(transit_planet)(jd)['longitude']
 
     def get_position_at(self, transit_planet, dt, timezone='America/Los_Angeles'):
-        """Full position (longitude + speed) of a transiting planet at a datetime"""
+        """Full position (longitude + speed) of a moving point at a datetime"""
         jd = self.em.get_julian_day_from_datetime(dt, timezone)
-        return self.em.get_planet_position(transit_planet, jd)
+        return self.position_lookup(transit_planet)(jd)
 
     def get_aspect_targets(self, natal_long, aspect_angle):
         """
@@ -275,7 +291,7 @@ class TransitCalculator:
 
     def _separation_at_jd(self, transit_planet, jd, target_long):
         """Signed separation from the aspect point at a Julian Day"""
-        position = self.em.get_planet_position(transit_planet, jd)
+        position = self.position_lookup(transit_planet)(jd)
         return self.signed_separation(position['longitude'], target_long)
 
     def _refine_crossing_jd(self, transit_planet, target_long, before_jd, after_jd):
@@ -360,6 +376,7 @@ class TransitCalculator:
         start_jd = self.em.get_julian_day_from_datetime(start_dt, timezone)
         end_jd = self.em.get_julian_day_from_datetime(end_dt, timezone)
         step = step_hours / 24.0
+        position_at = self.position_lookup(transit_planet)
 
         # Scanning backward finds the most recent hit first, which is usually
         # only days away - much cheaper than sweeping the whole window.
@@ -378,7 +395,7 @@ class TransitCalculator:
             def record(bracket_a, bracket_b):
                 before_jd, after_jd = sorted((bracket_a, bracket_b))
                 hit_jd = self._refine_crossing_jd(transit_planet, target_long, before_jd, after_jd)
-                position = self.em.get_planet_position(transit_planet, hit_jd)
+                position = position_at(hit_jd)
                 crossings.append({
                     'datetime': self.em.get_datetime_from_julian_day(hit_jd, timezone),
                     'orb': abs(self.signed_separation(position['longitude'], target_long)),
@@ -449,8 +466,8 @@ class TransitCalculator:
             )
 
             if abs(closest_sep) <= EXACT_TOLERANCE_DEG and not already_recorded:
-                speed_before = self.em.get_planet_position(transit_planet, closest_jd - 0.5)['speed']
-                speed_after = self.em.get_planet_position(transit_planet, closest_jd + 0.5)['speed']
+                speed_before = position_at(closest_jd - 0.5)['speed']
+                speed_after = position_at(closest_jd + 0.5)['speed']
 
                 if (speed_before < 0) != (speed_after < 0):
                     crossings.append({
@@ -479,8 +496,10 @@ class TransitCalculator:
         end_jd = self.em.get_julian_day_from_datetime(end_dt, timezone)
         step = step_hours / 24.0
 
+        position_at = self.position_lookup(transit_planet)
+
         def orb_at(jd):
-            position = self.em.get_planet_position(transit_planet, jd)
+            position = position_at(jd)
             return self.calculate_aspect_orb(position['longitude'], natal_long, aspect_angle)
 
         best_jd, best_orb = None, None
@@ -505,8 +524,8 @@ class TransitCalculator:
             jd += hour
 
         # A turning point is a station: direction differs on either side of it
-        speed_before = self.em.get_planet_position(transit_planet, best_jd - 0.5)['speed']
-        speed_after = self.em.get_planet_position(transit_planet, best_jd + 0.5)['speed']
+        speed_before = position_at(best_jd - 0.5)['speed']
+        speed_after = position_at(best_jd + 0.5)['speed']
 
         return {
             'datetime': self.em.get_datetime_from_julian_day(best_jd, timezone),
@@ -539,8 +558,10 @@ class TransitCalculator:
         end_jd = self.em.get_julian_day_from_datetime(end_dt, timezone)
         step = step_hours / 24.0
 
+        position_at = self.position_lookup(transit_planet)
+
         def speed_at(jd):
-            return self.em.get_planet_position(transit_planet, jd)['speed']
+            return position_at(jd)['speed']
 
         stations = []
         jd = start_jd
@@ -563,7 +584,7 @@ class TransitCalculator:
                 orb = None
                 if natal_long is not None and aspect_angle is not None:
                     orb = self.calculate_aspect_orb(
-                        self.em.get_planet_position(transit_planet, turn_jd)['longitude'],
+                        position_at(turn_jd)['longitude'],
                         natal_long, aspect_angle
                     )
 

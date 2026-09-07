@@ -4,6 +4,7 @@ Flask API for Transit Tracker
 from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 from transit_calculator import TransitCalculator
+from progressions import ProgressionCalculator
 from collections import OrderedDict
 from datetime import datetime, timedelta
 import traceback
@@ -21,6 +22,7 @@ CORS(app)
 
 # Initialize transit calculator
 tc = TransitCalculator()
+pc = ProgressionCalculator(tc)
 
 # Background job storage
 export_jobs = {}  # job_id -> {status, progress, result, error, created_at}
@@ -375,6 +377,34 @@ def build_journal(chart_key, start_date, days, timezone):
         _journal_cache.popitem(last=False)
 
     return journal
+
+
+@app.route('/api/progressions/<chart_key>', methods=['GET'])
+def get_progressions(chart_key):
+    """
+    Secondary progressions and solar arc directions for a chart
+
+    Query params:
+        date: Date to progress to (default: today)
+        orb: Aspect orb in degrees (default: 1)
+        timezone: Timezone string (default: America/Los_Angeles)
+    """
+    try:
+        date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        orb = float(request.args.get('orb', 1))
+        timezone = request.args.get('timezone', 'America/Los_Angeles')
+
+        # Validate date
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+        return jsonify(pc.generate_report(chart_key, date_str, orb, timezone))
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/journal/<chart_key>', methods=['GET'])

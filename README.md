@@ -180,6 +180,20 @@ Lists every real perfection in a date range. Narrow it by transiting planet or
 by aspect if the list gets long - both are facts about the transit, not
 judgements about it.
 
+### Progressions & Solar Arc
+Secondary progressions (a day of ephemeris per year of life) and solar arc
+directions (every natal point advanced by the progressed Sun's travel) for any
+chart, the Davison included. Shows the progressed chart with houses and
+retrogrades, the progressed Moon's sign, phase and next changes, and aspects -
+progressed to natal, progressed Moon to progressed chart, and directed to natal
+- each with the pass behind and the pass ahead, found as real 0°00' crossings.
+Default orb is 1°; search windows scale to how fast the point moves, and never
+reach back before the chart's own birth moment.
+
+Progressed **angles** have no single agreed method. They currently advance by
+solar arc; `ProgressionCalculator(tc, angle_method='naibod')` switches to the
+Naibod rate. Directed angles are unambiguous (natal plus the arc) either way.
+
 ### Transit Journal
 Day-by-day reads over 7, 10, 14, 21 or 30 days. Each day lists the Moon's sign, ingress
 and every aspect it perfects (timed to the minute from real 0°00' crossings),
@@ -201,6 +215,7 @@ cd backend
 python test_specific_transits.py   # known transits, printed for eyeballing
 python test_exactness.py           # exactness/retrograde regression checks
 python verify_positions.py         # positions and time handling vs outside references
+python test_progressions.py        # progressions and solar arc against their definitions
 ```
 
 `verify_positions.py` is the accuracy check to reach for when the app disagrees

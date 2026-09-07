@@ -484,6 +484,7 @@
             <button class="tab" data-tab="scanner">Transit Scanner</button>
             <button class="tab" data-tab="compare">Compare Charts</button>
             <button class="tab" data-tab="journal">Transit Journal</button>
+            <button class="tab" data-tab="progressions">Progressions</button>
         </div>
 
         <div id="dashboard-tab" class="tab-content active">
@@ -602,6 +603,46 @@
                 </div>
             </div>
         </div>
+
+        <div id="progressions-tab" class="tab-content">
+            <div class="dashboard">
+                <h2 style="margin-bottom: 20px;">Progressions &amp; Solar Arc</h2>
+                <div class="controls" style="margin-bottom: 20px;">
+                    <div class="control-group">
+                        <label for="prog-chart">Chart</label>
+                        <select id="prog-chart">
+                            <option value="christina">Christina</option>
+                            <option value="julian">Julian</option>
+                            <option value="anna">Anna</option>
+                            <option value="jarrett">Jarrett</option>
+                            <option value="superlunar">Superlunar Design Co.</option>
+                            <option value="davison">Davison (Midpoint)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="prog-date">Date</label>
+                        <input type="date" id="prog-date">
+                    </div>
+                    <div class="control-group">
+                        <label for="prog-orb">Orb</label>
+                        <select id="prog-orb">
+                            <option value="1" selected>1°</option>
+                            <option value="0.5">0°30'</option>
+                            <option value="2">2°</option>
+                            <option value="3">3°</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="spacer">&nbsp;</label>
+                        <button id="prog-btn">Calculate</button>
+                    </div>
+                </div>
+                <div id="progressions-content">
+                    <p style="color: #666;">Pick a chart and a date to see the progressed chart, the progressed Moon's cycle, and solar arc directions.</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -650,6 +691,7 @@
         document.getElementById('time-input').value = nowPacific.time;
         document.getElementById('scan-start').value = today;
         document.getElementById('journal-start').value = today;
+        document.getElementById('prog-date').value = today;
 
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 120);
@@ -676,6 +718,7 @@
         document.getElementById('load-btn').addEventListener('click', loadDashboard);
         document.getElementById('scan-btn').addEventListener('click', scanTransits);
         document.getElementById('journal-btn').addEventListener('click', loadJournal);
+        document.getElementById('prog-btn').addEventListener('click', loadProgressions);
 
         // Toggle houses - re-render views when changed
         document.getElementById('show-houses').addEventListener('change', () => {
@@ -1532,6 +1575,65 @@
                     ${finished ? `<p style="color: #666; font-size: 12px;">Done: ${finished}</p>` : ''}
                 </div>
             `;
+        }
+
+        async function loadProgressions() {
+            const chart = document.getElementById('prog-chart').value;
+            const date = document.getElementById('prog-date').value;
+            const orb = document.getElementById('prog-orb').value;
+
+            showLoading('progressions-content');
+            clearError();
+
+            try {
+                const response = await fetchWithTimeout(
+                    `${API_URL}/api/progressions/${chart}?date=${date}&orb=${orb}`);
+                if (!response.ok) throw new Error(`Server returned ${response.status}`);
+
+                renderProgressions(await response.json());
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderProgressions(data) {
+            const container = document.getElementById('progressions-content');
+            const arcDegrees = Math.floor(data.directed.arc);
+            const arcMinutes = Math.floor((data.directed.arc % 1) * 60);
+            const moon = data.progressed_moon;
+
+            container.innerHTML = `
+                <div class="summary">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.years_elapsed.toFixed(1)}</div>
+                        <div class="stat-label">Years of Life</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${arcDegrees}°${String(arcMinutes).padStart(2, '0')}'</div>
+                        <div class="stat-label">Solar Arc</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="font-size: 20px;">${moon.degree}°${String(moon.minute).padStart(2, '0')}' ${moon.sign}</div>
+                        <div class="stat-label">Progressed Moon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="font-size: 20px;">${moon.phase}</div>
+                        <div class="stat-label">Progressed Phase</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3>Plain Text (Copy &amp; Paste)</h3>
+                        <button onclick="copyProgressionsText(this)" style="padding: 8px 16px; font-size: 12px;">Copy to Clipboard</button>
+                    </div>
+                    <pre id="progressions-text-output" style="background: #f5f5f5; padding: 20px; border-radius: 8px; font-size: 12px; font-family: 'Courier New', monospace; white-space: pre-wrap; overflow-x: auto; max-height: 600px; overflow-y: auto; line-height: 1.5;">${escapeHtml(data.plain_text)}</pre>
+                </div>
+            `;
+        }
+
+        function copyProgressionsText(btn) {
+            copyTextToClipboard(document.getElementById('progressions-text-output').innerText, btn);
         }
 
         function renderJournal(data, compareMode) {
