@@ -194,7 +194,16 @@ To verify calculations against known transits:
 cd backend
 python test_specific_transits.py   # known transits, printed for eyeballing
 python test_exactness.py           # exactness/retrograde regression checks
+python verify_positions.py         # positions and time handling vs outside references
 ```
+
+`verify_positions.py` is the accuracy check to reach for when the app disagrees
+with other astrology software. It uses no Swiss Ephemeris: planet positions are
+recomputed from JPL's published Keplerian elements, and the date-to-Julian-Day
+chain is checked against fixed constants (J2000, the Unix epoch, and PDT/PST
+offsets). Agreement to a few arc minutes means the ephemeris and timezone
+handling are sound, so any remaining disagreement is in the chart data - a natal
+degree, or a chart's date/time/place - rather than the transit math.
 
 This will show:
 - Julian's Pluto conjunct Mercury (currently active)
