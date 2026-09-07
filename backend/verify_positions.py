@@ -114,6 +114,11 @@ def main():
     em = EphemerisManager()
     failures = []
 
+    print(f"\nEphemeris in use: {em.ephemeris_source}")
+    if 'Moshier' in em.ephemeris_source:
+        print("  (the .se1 files in ephemeris/ are missing - positions still")
+        print("   agree to about an arc second, but Chiron is unavailable)")
+
     print("\nJulian Day chain (fixed astronomical constants)")
     print("-" * 72)
     checks = [

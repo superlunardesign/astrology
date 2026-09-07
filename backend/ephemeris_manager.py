@@ -21,6 +21,23 @@ class EphemerisManager:
         os.makedirs(EPHEMERIS_PATH, exist_ok=True)
         swe.set_ephe_path(EPHEMERIS_PATH)
         self._position_cache = {}
+        self.ephemeris_source = self._detect_ephemeris_source()
+
+    def _detect_ephemeris_source(self):
+        """
+        Which ephemeris swisseph actually used, not which one we asked for.
+
+        Asking for the Swiss files when they are missing does not raise - it
+        quietly returns a Moshier position instead, so the only way to know is
+        to look at the flag that comes back.
+        """
+        _, flag = swe.calc_ut(2451545.0, swe.SUN, swe.FLG_SWIEPH)
+
+        if flag & swe.FLG_MOSEPH:
+            return 'Moshier (built-in - Swiss Ephemeris files not found)'
+        if flag & swe.FLG_JPLEPH:
+            return 'JPL'
+        return 'Swiss Ephemeris files'
 
     def get_julian_day(self, date_str, time_str, tz_str):
         """
