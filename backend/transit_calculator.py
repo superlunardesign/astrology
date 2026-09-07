@@ -3,6 +3,7 @@ Transit Calculator
 Core logic for calculating transits, aspects, and timelines
 """
 from datetime import datetime, timedelta
+import pytz
 from ephemeris_manager import EphemerisManager
 from natal_charts import NatalChartManager
 from config import ASPECTS, PLANETS, CRITICAL_TRANSITS, HIGH_TRANSITS, MEDIUM_TRANSITS
@@ -1158,7 +1159,7 @@ class TransitCalculator:
             hit_dt = datetime.strptime(hit['datetime'], '%Y-%m-%d %H:%M')
             text = f" | {label} {hit_dt.strftime('%m-%d-%Y')}"
             if with_time:
-                text += f" ~{self.format_time_12hr(hit_dt.strftime('%H:%M'))} PST"
+                text += f" ~{self.format_time_12hr(hit_dt.strftime('%H:%M'))} {self.timezone_label(hit_dt)}"
             if hit.get('retrograde'):
                 text += ' (Rx)'
             return text
@@ -1224,6 +1225,19 @@ class TransitCalculator:
         if aspect.get('is_retrograde'):
             return ' (Rx)'
         return ''
+
+    def timezone_label(self, when, timezone='America/Los_Angeles'):
+        """
+        'PDT' or 'PST' for a given moment.
+
+        Everything here runs on Pacific time, which is daylight time from March
+        to November - labelling it PST year round is wrong for most of the year.
+        """
+        if isinstance(when, str):
+            when = datetime.strptime(when[:16], '%Y-%m-%d %H:%M') if len(when) > 10 \
+                else datetime.strptime(when[:10], '%Y-%m-%d')
+
+        return pytz.timezone(timezone).localize(when).tzname()
 
     def format_time_12hr(self, time_24hr):
         """Convert 24-hour time to 12-hour format with am/pm"""
@@ -1420,12 +1434,14 @@ class TransitCalculator:
         dt = datetime.strptime(date_str, '%Y-%m-%d')
         date_formatted = dt.strftime('%B %d, %Y')
 
-        lines = [f"{date_formatted} Transits at {time_12hr} PST", f"for {chart_name}", ""]
+        zone = self.timezone_label(f"{date_str} {time_str}", timezone)
+
+        lines = [f"{date_formatted} Transits at {time_12hr} {zone}", f"for {chart_name}", ""]
 
         # Add current planetary positions section
         jd = self.em.get_julian_day(date_str, time_str, timezone)
         lines.append("==================================================")
-        lines.append(f"WHERE THE PLANETS ARE IN THE SKY AT {time_12hr} PST")
+        lines.append(f"WHERE THE PLANETS ARE IN THE SKY AT {time_12hr} {zone}")
         lines.append("==================================================")
         lines.append("")
 
@@ -1979,6 +1995,15 @@ class TransitCalculator:
         # Header
         lines.append(f"TRANSIT JOURNAL - {chart_name}")
         lines.append(f"{start.strftime('%B %d')} - {end.strftime('%B %d, %Y')}")
+
+        # A long journal can cross the daylight saving change, so say so
+        start_zone = self.timezone_label(start.strftime('%Y-%m-%d'))
+        end_zone = self.timezone_label(end.strftime('%Y-%m-%d'))
+        if start_zone == end_zone:
+            lines.append(f"All times Pacific ({start_zone})")
+        else:
+            lines.append(f"All times Pacific ({start_zone}, then {end_zone} after the clocks change)")
+
         lines.append("")
         lines.append("=" * 50)
         lines.append("CURRENT PLANETARY POSITIONS")
@@ -2080,7 +2105,8 @@ class TransitCalculator:
             for station in entry.get('stations', []):
                 turn = 'goes retrograde (Rx)' if station['type'] == 'SR' else 'stations direct'
                 lines.append(f"  >> {station['planet']} {turn} at "
-                             f"{self.format_time_12hr(station['time'])} PST")
+                             f"{self.format_time_12hr(station['time'])} "
+                             f"{self.timezone_label(entry['date'])}")
 
             # Events (entering, exact, exiting)
             for event in entry['events']:

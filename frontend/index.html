@@ -629,6 +629,17 @@
             return pacificParts(date).date;
         }
 
+        function pacificLabel(dateString) {
+            // "PDT" or "PST" for a date - Pacific runs on daylight time from
+            // March to November, so a fixed "PST" is wrong most of the year
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Los_Angeles', timeZoneName: 'short'
+            }).formatToParts(new Date(dateString + 'T20:00:00Z'));
+
+            const zone = parts.find(part => part.type === 'timeZoneName');
+            return zone ? zone.value : 'Pacific';
+        }
+
         // Initialize date and time inputs
         const nowPacific = pacificParts(new Date());
         const today = nowPacific.date;
@@ -1020,7 +1031,7 @@
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             const time12hr = formatTime12hr(data.time || '12:00');
 
-            let lines = [dateFormatted + ' Transits at ' + time12hr + ' PST', data.chart_name || '', ''];
+            let lines = [dateFormatted + ' Transits at ' + time12hr + ' ' + pacificLabel(data.date), data.chart_name || '', ''];
 
             data.aspects.forEach(aspect => {
                 const direction = aspect.is_applying ? 'applying' : 'separating';
@@ -1065,7 +1076,7 @@
             const comparePlainText = generateComparePlainText(data);
 
             const html = `
-                <p style="color: #666; margin-bottom: 20px;">Transit comparison for ${data.date} at ${data.time || '12:00'} PST</p>
+                <p style="color: #666; margin-bottom: 20px;">Transit comparison for ${data.date} at ${data.time || '12:00'} ${pacificLabel(data.date)}</p>
 
                 <div style="margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -1111,12 +1122,13 @@
             const dateObj = new Date(data.date + 'T12:00:00');
             const dateFormatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             const timeStr = data.time || '12:00';
-            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + timeStr + ' PST', ''];
+            const zone = pacificLabel(data.date);
+            let lines = ['Transit Comparison - ' + dateFormatted + ' at ' + timeStr + ' ' + zone, ''];
 
             // Add current planetary positions
             if (data.planet_positions) {
                 lines.push('==================================================');
-                lines.push('WHERE THE PLANETS ARE IN THE SKY AT ' + timeStr + ' PST');
+                lines.push('WHERE THE PLANETS ARE IN THE SKY AT ' + timeStr + ' ' + zone);
                 lines.push('==================================================');
                 lines.push('');
 
@@ -1426,7 +1438,7 @@
             // Show everything in the order it happens
             timelineItems.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-            let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline (PST)</h4>';
+            let html = '<div class="timeline"><h4 style="margin-bottom: 15px; color: #667eea;">Aspect Timeline (Pacific)</h4>';
 
             timelineItems.forEach(item => {
                 const markerClass = item.type === 'exact' ? 'timeline-marker exact' : 'timeline-marker';
