@@ -88,7 +88,8 @@ NATAL_POSITIONS = {
         }
     },
     'davison': {
-        'name': 'Davison',
+        'name': 'Davison Relationship Chart of Julian & Christina',
+        'short_name': 'the Davison chart',
         'birth_data': {
             'date': '1997-03-07',
             'time': '03:58',
@@ -229,7 +230,8 @@ NATAL_CHARTS = {
         }
     },
     'davison': {
-        'name': 'Davison',
+        'name': 'Davison Relationship Chart of Julian & Christina',
+        'short_name': 'the Davison chart',
         'date': '1997-03-07',
         'time': '03:58',
         'location': {
@@ -307,28 +309,31 @@ ASPECTS = {
     'Opposition': {'angle': 180, 'orb': 3, 'symbol': '☍'}
 }
 
+# Off by default, and on a tighter orb than the majors - a minor aspect at 3°
+# is noise, and there are twice as many of them
+MINOR_ASPECTS = {
+    'Semisextile': {'angle': 30, 'orb': 1.5, 'symbol': '⚺'},
+    'Semisquare': {'angle': 45, 'orb': 1.5, 'symbol': '∠'},
+    'Quintile': {'angle': 72, 'orb': 1, 'symbol': 'Q'},
+    'Sesquiquadrate': {'angle': 135, 'orb': 1.5, 'symbol': '⚼'},
+    'Biquintile': {'angle': 144, 'orb': 1, 'symbol': 'bQ'},
+    'Quincunx': {'angle': 150, 'orb': 2, 'symbol': '⚻'},
+}
+
+# Every aspect by name, so a minor one can be looked up wherever it appears
+ALL_ASPECTS = {**ASPECTS, **MINOR_ASPECTS}
+
+# Sign rulers. Modern gives the outer planets the three signs they were
+# assigned after their discovery; the traditional ruler is still worth having,
+# so where the two differ both are reported.
+SIGN_RULERS = {
+    'Aries': 'Mars', 'Taurus': 'Venus', 'Gemini': 'Mercury', 'Cancer': 'Moon',
+    'Leo': 'Sun', 'Virgo': 'Mercury', 'Libra': 'Venus', 'Scorpio': 'Pluto',
+    'Sagittarius': 'Jupiter', 'Capricorn': 'Saturn', 'Aquarius': 'Uranus',
+    'Pisces': 'Neptune'
+}
+
+TRADITIONAL_RULERS = {'Scorpio': 'Mars', 'Aquarius': 'Saturn', 'Pisces': 'Jupiter'}
+
 # Angles
 ANGLES = ['Ascendant', 'MC', 'Descendant', 'IC']
-
-# Significance ratings
-CRITICAL_TRANSITS = [
-    ('Pluto', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Saturn', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Uranus', ['Ascendant', 'MC', 'Descendant', 'IC']),
-    ('Neptune', ['Ascendant', 'MC', 'Descendant', 'IC']),
-    ('Pluto', ['Ascendant', 'MC', 'Descendant', 'IC']),
-    ('North Node', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('South Node', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-]
-
-HIGH_TRANSITS = [
-    ('Uranus', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Neptune', ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars']),
-    ('Jupiter', ['Sun', 'Moon', 'Venus']),
-]
-
-MEDIUM_TRANSITS = [
-    ('Jupiter', ['Mercury', 'Mars', 'Ascendant', 'MC']),
-    ('Mars', ['Venus']),
-    ('Venus', ['Sun', 'Moon', 'Venus', 'Mars']),
-]
