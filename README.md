@@ -115,6 +115,15 @@ Birth data and settings are in `backend/config.py`:
 
 ## Calculation Details
 
+### Natal Chart Reference
+On by default, and the **Natal Chart** checkbox turns it off. Every copy/paste
+block opens with the chart being read against: placements with sign, degree,
+minute, house and retrograde (read from the ephemeris at the birth moment, not
+stored), the four angles, all twelve Placidus cusps, and the ruler of each
+house with where that ruler sits. Where modern and traditional rulership differ
+- Scorpio, Aquarius, Pisces - both are given. `/api/natal-reference/<chart>`
+serves the same thing on its own.
+
 ### Minor Aspects
 Off by default. The **Minor Aspects** checkbox adds semisextile (30°),
 semisquare (45°), quintile (72°), sesquiquadrate (135°), biquintile (144°) and

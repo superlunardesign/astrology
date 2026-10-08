@@ -323,5 +323,17 @@ MINOR_ASPECTS = {
 # Every aspect by name, so a minor one can be looked up wherever it appears
 ALL_ASPECTS = {**ASPECTS, **MINOR_ASPECTS}
 
+# Sign rulers. Modern gives the outer planets the three signs they were
+# assigned after their discovery; the traditional ruler is still worth having,
+# so where the two differ both are reported.
+SIGN_RULERS = {
+    'Aries': 'Mars', 'Taurus': 'Venus', 'Gemini': 'Mercury', 'Cancer': 'Moon',
+    'Leo': 'Sun', 'Virgo': 'Mercury', 'Libra': 'Venus', 'Scorpio': 'Pluto',
+    'Sagittarius': 'Jupiter', 'Capricorn': 'Saturn', 'Aquarius': 'Uranus',
+    'Pisces': 'Neptune'
+}
+
+TRADITIONAL_RULERS = {'Scorpio': 'Mars', 'Aquarius': 'Saturn', 'Pisces': 'Jupiter'}
+
 # Angles
 ANGLES = ['Ascendant', 'MC', 'Descendant', 'IC']

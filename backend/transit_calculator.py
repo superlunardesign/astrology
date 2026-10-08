@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 import pytz
 from ephemeris_manager import EphemerisManager
 from natal_charts import NatalChartManager
-from config import ALL_ASPECTS, ASPECTS, MINOR_ASPECTS, PLANETS
+from config import (ALL_ASPECTS, ASPECTS, MINOR_ASPECTS, NATAL_CHARTS, PLANETS,
+                    SIGN_RULERS, TRADITIONAL_RULERS)
 import math
 
 # An aspect counts as exact only at 0°00'. This tolerance (1 arc minute)
@@ -1211,8 +1212,133 @@ class TransitCalculator:
         except:
             return time_24hr
 
+    # ------------------------------------------------------------------
+    # The natal chart itself
+    # ------------------------------------------------------------------
+
+    NATAL_ORDER = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn',
+                   'Uranus', 'Neptune', 'Pluto', 'Chiron', 'North Node', 'South Node']
+
+    HOUSE_NAMES = ['1st', '2nd', '3rd', '4th', '5th', '6th',
+                   '7th', '8th', '9th', '10th', '11th', '12th']
+
+    def natal_reference(self, chart_key):
+        """
+        A chart's own placements, house cusps and house rulers.
+
+        Retrograde is read from the ephemeris at the birth moment rather than
+        stored, so it is right even though the positions themselves come from
+        the chart's own source.
+        """
+        chart = self.ncm.get_chart(chart_key)
+        positions = chart['positions']
+        cusps = chart.get('house_cusps') or []
+
+        birth = NATAL_CHARTS.get(chart_key)
+        birth_jd = self.em.get_julian_day(
+            birth['date'], birth['time'], birth['location']['timezone']) if birth else None
+
+        def describe(point, longitude):
+            retrograde = False
+            if birth_jd is not None and point in PLANETS:
+                if point in OSCILLATING_POINTS:
+                    # The true node wobbles, so read it over the surrounding week
+                    retrograde = self.is_prevailing_retrograde(
+                        point, self.em.get_datetime_from_julian_day(birth_jd))
+                else:
+                    retrograde = self.em.get_planet_position(point, birth_jd)['speed'] < 0
+
+            return {
+                'point': point,
+                'longitude': longitude,
+                'sign': self.get_sign_from_longitude(longitude),
+                'degree': int(longitude % 30),
+                'minute': int(((longitude % 30) % 1) * 60),
+                'house': self.ncm.get_house_for_longitude(chart_key, longitude),
+                'retrograde': retrograde
+            }
+
+        placements = [describe(point, positions[point]['longitude'])
+                      for point in self.NATAL_ORDER if point in positions]
+        angles = [describe(point, positions[point]['longitude'])
+                  for point in ['Ascendant', 'MC', 'Descendant', 'IC'] if point in positions]
+
+        houses = []
+        for index, cusp in enumerate(cusps[:12]):
+            sign = self.get_sign_from_longitude(cusp)
+            ruler = SIGN_RULERS[sign]
+            traditional = TRADITIONAL_RULERS.get(sign)
+
+            def placed(planet):
+                if planet not in positions:
+                    return None
+                longitude = positions[planet]['longitude']
+                return {
+                    'planet': planet,
+                    'sign': self.get_sign_from_longitude(longitude),
+                    'degree': int(longitude % 30),
+                    'house': self.ncm.get_house_for_longitude(chart_key, longitude)
+                }
+
+            houses.append({
+                'house': index + 1,
+                'name': self.HOUSE_NAMES[index],
+                'cusp_longitude': cusp,
+                'sign': sign,
+                'degree': int(cusp % 30),
+                'minute': int(((cusp % 30) % 1) * 60),
+                'ruler': placed(ruler),
+                'traditional_ruler': placed(traditional) if traditional else None
+            })
+
+        return {'placements': placements, 'angles': angles, 'houses': houses}
+
+    def format_natal_reference(self, chart_key, include_houses=True):
+        """The natal chart as copy/paste lines"""
+        chart_name, _ = self.get_chart_names(chart_key)
+        reference = self.natal_reference(chart_key)
+
+        def position_line(entry, with_house=True):
+            marker = ' (Rx)' if entry['retrograde'] else ''
+            house = f" (House {entry['house']})" if with_house and entry['house'] else ''
+            return (f"  {entry['point']:12} - {entry['degree']:2d}°{entry['minute']:02d}' "
+                    f"{entry['sign']}{marker}{house}")
+
+        lines = ["=" * 50, f"{chart_name.upper()}'S NATAL CHART", "=" * 50, "",
+                 "Placements:"]
+        lines += [position_line(entry) for entry in reference['placements']]
+
+        if reference['angles']:
+            lines.append("")
+            lines.append("Angles:")
+            lines += [position_line(entry, with_house=False) for entry in reference['angles']]
+
+        if include_houses and reference['houses']:
+            lines += ["", "House cusps (Placidus):"]
+            for house in reference['houses']:
+                lines.append(f"  {house['name']:>4} - {house['degree']:2d}°"
+                             f"{house['minute']:02d}' {house['sign']}")
+
+            lines += ["", "House rulers:"]
+            for house in reference['houses']:
+                ruler = house['ruler']
+                if not ruler:
+                    continue
+                line = (f"  {house['name']:>4} - {house['sign']} on the cusp, ruled by "
+                        f"{ruler['planet']} in {ruler['sign']} (House {ruler['house']})")
+
+                traditional = house['traditional_ruler']
+                if traditional:
+                    line += (f" | traditionally {traditional['planet']} in "
+                             f"{traditional['sign']} (House {traditional['house']})")
+                lines.append(line)
+
+        lines.append("")
+        return lines
+
     def get_daily_dashboard(self, chart_key, date_str, max_orb=3, time_str='12:00',
-                            timezone='America/Los_Angeles', include_minor=False):
+                            timezone='America/Los_Angeles', include_minor=False,
+                            include_natal=True):
         """
         Get complete daily dashboard for a chart
 
@@ -1353,7 +1479,8 @@ class TransitCalculator:
             aspect['natal_sign'] = self.get_sign_from_longitude(aspect['natal_longitude'])
 
         # Generate plain text list
-        plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects, timezone)
+        plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects,
+                                                         timezone, include_natal)
 
         chart_name, chart_short_name = self.get_chart_names(chart_key)
 
@@ -1381,7 +1508,8 @@ class TransitCalculator:
         chart = self.ncm.get_chart(chart_key)
         return chart['name'], chart.get('short_name', chart['name'])
 
-    def generate_plain_text_list(self, chart_key, date_str, time_str, aspects, timezone='America/Los_Angeles'):
+    def generate_plain_text_list(self, chart_key, date_str, time_str, aspects,
+                                 timezone='America/Los_Angeles', include_natal=True):
         """Generate a plain text list of aspects for easy copying"""
         chart_name, chart_short_name = self.get_chart_names(chart_key)
         time_12hr = self.format_time_12hr(time_str)
@@ -1411,23 +1539,9 @@ class TransitCalculator:
             lines.append(f"  {planet:12} - {degree}° {sign}")
         lines.append("")
 
-        # Add natal placements section
-        chart = self.ncm.get_chart(chart_key)
-        lines.append("==================================================")
-        lines.append(f"{chart_name.upper()}'S NATAL PLACEMENTS")
-        lines.append("==================================================")
-        lines.append("")
-
-        natal_order = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
-                       'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
-                       'North Node', 'South Node', 'Ascendant', 'Midheaven']
-        for point in natal_order:
-            if point in chart['positions']:
-                longitude = chart['positions'][point]['longitude']
-                sign = self.get_sign_from_longitude(longitude)
-                degree = int(longitude % 30)
-                lines.append(f"  {point:12} - {degree}° {sign}")
-        lines.append("")
+        # The chart being read against: placements, cusps and rulers
+        if include_natal:
+            lines += self.format_natal_reference(chart_key)
 
         # Add Moon transits section
         lines.append("==================================================")
@@ -1621,7 +1735,8 @@ class TransitCalculator:
         return upcoming
 
     def generate_transit_journal(self, chart_key, start_date, days=7,
-                                 timezone='America/Los_Angeles', include_minor=False):
+                                 timezone='America/Los_Angeles', include_minor=False,
+                                 include_natal=True):
         """
         Generate a comprehensive transit journal for a given date range
 
@@ -1826,7 +1941,8 @@ class TransitCalculator:
         # Generate plain text output
         plain_text = self._generate_journal_plain_text(
             chart_name, start_date, days, planet_positions,
-            natal_activated_info, all_transits, daily_entries
+            natal_activated_info, all_transits, daily_entries,
+            natal_reference=self.format_natal_reference(chart_key) if include_natal else None
         )
 
         return {
@@ -1921,7 +2037,8 @@ class TransitCalculator:
 
     def _generate_journal_plain_text(self, chart_name, start_date, days,
                                       planet_positions, natal_activated,
-                                      all_transits, daily_entries):
+                                      all_transits, daily_entries,
+                                      natal_reference=None):
         """Generate plain text version of the transit journal"""
         start = datetime.strptime(start_date, '%Y-%m-%d')
         end = start + timedelta(days=days-1)
@@ -1965,6 +2082,10 @@ class TransitCalculator:
 
             for point_name, p in natal_activated.items():
                 lines.append(f"  {point_name:12} - {p['degree']}° {p['sign']} (House {p['house']})")
+
+        if natal_reference:
+            lines.append("")
+            lines += natal_reference
 
         lines.append("")
         lines.append("=" * 50)

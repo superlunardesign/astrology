@@ -402,7 +402,8 @@ class ProgressionCalculator:
     # ------------------------------------------------------------------
 
     def generate_report(self, chart_key, date_str, orb=DEFAULT_ORB,
-                        timezone='America/Los_Angeles', include_minor=False):
+                        timezone='America/Los_Angeles', include_minor=False,
+                        include_natal=True):
         """Progressions and directions for one date, with copy/paste text"""
         progressed = self.progressed_chart(chart_key, date_str, timezone)
         directed = self.directed_chart(chart_key, date_str, timezone)
@@ -423,11 +424,13 @@ class ProgressionCalculator:
             'aspects': aspects,
             'plain_text': self._generate_plain_text(
                 chart_name, chart_short_name, date_str, orb,
-                progressed, directed, moon, aspects)
+                progressed, directed, moon, aspects,
+                self.tc.format_natal_reference(chart_key) if include_natal else None)
         }
 
     def _generate_plain_text(self, chart_name, chart_short_name, date_str, orb,
-                             progressed, directed, moon, aspects):
+                             progressed, directed, moon, aspects,
+                             natal_reference=None):
         formatted_date = datetime.strptime(date_str, '%Y-%m-%d').strftime('%B %d, %Y')
 
         def position_line(name, position):
@@ -462,6 +465,13 @@ class ProgressionCalculator:
             f"For {formatted_date}  |  {progressed['years_elapsed']:.2f} years of life",
             f"Solar arc: {arc_degrees}°{arc_minutes:02d}'  |  aspects within {orb:g}°",
             "",
+        ]
+
+        # The chart everything here is measured from
+        if natal_reference:
+            lines += natal_reference
+
+        lines += [
             "=" * 50,
             "PROGRESSED CHART",
             "=" * 50,

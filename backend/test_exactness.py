@@ -201,6 +201,45 @@ check('every minor aspect respects its own tighter orb',
           for a in with_minors if a['aspect'] in MINOR_ASPECTS),
       '(a minor aspect came back wider than its configured orb)')
 
+print("\nThe natal chart travels with the readings")
+print("-" * 72)
+reference = tc.natal_reference('christina')
+placements = {entry['point']: entry for entry in reference['placements']}
+
+check('every natal placement has a house',
+      all(entry['house'] for entry in reference['placements']),
+      '(a placement came back without one)')
+# Mercury was retrograde when she was born - read from the ephemeris at the
+# birth moment, not stored with the positions
+check('natal retrogrades are read from the birth moment',
+      placements['Mercury']['retrograde'] and not placements['Sun']['retrograde'],
+      f"(Mercury Rx={placements['Mercury']['retrograde']}, Sun Rx={placements['Sun']['retrograde']})")
+
+check('there are twelve house cusps', len(reference['houses']) == 12)
+check('the 1st cusp is the Ascendant',
+      abs(reference['houses'][0]['cusp_longitude']
+          - tc.ncm.get_natal_position('christina', 'Ascendant')) < 0.02,
+      f"(cusp {reference['houses'][0]['cusp_longitude']:.3f}°)")
+check('the 10th cusp is the MC',
+      abs(reference['houses'][9]['cusp_longitude']
+          - tc.ncm.get_natal_position('christina', 'MC')) < 0.02,
+      f"(cusp {reference['houses'][9]['cusp_longitude']:.3f}°)")
+
+check('every house has a ruler, placed somewhere',
+      all(house['ruler'] and house['ruler']['house'] for house in reference['houses']))
+scorpio = next((h for h in reference['houses'] if h['sign'] == 'Scorpio'), None)
+check('a Scorpio cusp gives Pluto with Mars noted as the traditional ruler',
+      scorpio is None or (scorpio['ruler']['planet'] == 'Pluto'
+                          and scorpio['traditional_ruler']['planet'] == 'Mars'),
+      f"(got {scorpio['ruler']['planet'] if scorpio else 'no Scorpio cusp'})")
+
+text = tc.get_daily_dashboard('christina', '2026-09-04', max_orb=3)['plain_text']
+check('the dashboard copy text carries it',
+      'House rulers:' in text and 'House cusps' in text)
+check('and it can be turned off',
+      'House rulers:' not in tc.get_daily_dashboard(
+          'christina', '2026-09-04', max_orb=3, include_natal=False)['plain_text'])
+
 print("\nScanner only lists real perfections")
 print("-" * 72)
 scan = tc.scan_future_transits('christina', '2026-09-04', '2026-12-04')

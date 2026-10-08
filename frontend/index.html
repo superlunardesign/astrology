@@ -483,6 +483,14 @@
                     Minor Aspects
                 </label>
             </div>
+
+            <div class="control-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                       title="The chart's own placements, house cusps and house rulers at the top of every copy/paste block">
+                    <input type="checkbox" id="natal-reference" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    Natal Chart
+                </label>
+            </div>
         </div>
 
         <div id="error-container"></div>
@@ -685,6 +693,15 @@
             return document.getElementById('minor-aspects').checked ? '&minor=true' : '';
         }
 
+        function natalReferenceParam() {
+            // On by default - the chart being read against heads every block
+            return document.getElementById('natal-reference').checked ? '' : '&natal=false';
+        }
+
+        function outputParams() {
+            return minorAspectsParam() + natalReferenceParam();
+        }
+
         function pacificLabel(dateString) {
             // "PDT" or "PST" for a date - Pacific runs on daylight time from
             // March to November, so a fixed "PST" is wrong most of the year
@@ -735,10 +752,12 @@
 
         // Toggle houses - re-render views when changed
         // Changing the aspect set needs the data again, not just a re-render
-        document.getElementById('minor-aspects').addEventListener('change', () => {
-            if (lastDashboardData) {
-                loadDashboard();
-            }
+        ['minor-aspects', 'natal-reference'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                if (lastDashboardData) {
+                    loadDashboard();
+                }
+            });
         });
 
         document.getElementById('show-houses').addEventListener('change', () => {
@@ -769,7 +788,7 @@
             clearError();
 
             try {
-                const response = await fetch(`${API_URL}/api/dashboard/${chart}?date=${date}&time=${time}${minorAspectsParam()}`);
+                const response = await fetch(`${API_URL}/api/dashboard/${chart}?date=${date}&time=${time}${outputParams()}`);
                 if (!response.ok) throw new Error('Failed to load dashboard');
 
                 const data = await response.json();
@@ -797,7 +816,7 @@
                 const aspect = document.getElementById('scan-aspect').value;
                 const filters = (planet ? `&planets=${encodeURIComponent(planet)}` : '')
                     + (aspect ? `&aspects=${encodeURIComponent(aspect)}` : '');
-                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}${filters}${minorAspectsParam()}`);
+                const response = await fetch(`${API_URL}/api/scan/${chart}?start_date=${startDate}&end_date=${endDate}${filters}${outputParams()}`);
                 if (!response.ok) throw new Error('Failed to scan transits');
 
                 const data = await response.json();
@@ -812,7 +831,7 @@
             const time = document.getElementById('time-input').value;
 
             try {
-                const response = await fetch(`${API_URL}/api/compare?date=${date}&time=${time}${minorAspectsParam()}`);
+                const response = await fetch(`${API_URL}/api/compare?date=${date}&time=${time}${outputParams()}`);
                 if (!response.ok) throw new Error('Failed to load comparison');
 
                 const data = await response.json();
@@ -1071,6 +1090,15 @@
 
             let lines = [dateFormatted + ' Transits at ' + time12hr + ' ' + pacificLabel(data.date), data.chart_name || '', ''];
 
+            // The chart being read against, when the Natal Chart box is ticked
+            if (data.natal_reference) {
+                lines.push(data.natal_reference);
+                lines.push('==================================================');
+                lines.push('TRANSITS');
+                lines.push('==================================================');
+                lines.push('');
+            }
+
             data.aspects.forEach(aspect => {
                 const direction = aspect.is_applying ? 'applying' : 'separating';
                 const orbDeg = Math.floor(aspect.orb);
@@ -1172,24 +1200,9 @@
             }
 
             Object.entries(data.charts).forEach(([key, chart]) => {
-                // Natal placements section
-                if (chart.natal_positions) {
-                    lines.push('==================================================');
-                    lines.push(chart.name.toUpperCase() + "'S NATAL PLACEMENTS");
-                    lines.push('==================================================');
-                    lines.push('');
-
-                    const natalOrder = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter',
-                                        'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Chiron',
-                                        'North Node', 'South Node', 'Ascendant', 'Midheaven'];
-
-                    natalOrder.forEach(point => {
-                        if (chart.natal_positions[point]) {
-                            const p = chart.natal_positions[point];
-                            lines.push('  ' + point.padEnd(12) + ' - ' + p.degree + '° ' + p.sign);
-                        }
-                    });
-                    lines.push('');
+                // Natal chart section - placements, cusps and rulers
+                if (chart.natal_reference) {
+                    lines.push(chart.natal_reference);
                 }
 
                 // Moon transits section
@@ -1525,7 +1538,7 @@
         }
 
         async function fetchJournal(chart, startDate, days) {
-            const url = `${API_URL}/api/journal/${chart}?start_date=${startDate}&days=${days}${minorAspectsParam()}`;
+            const url = `${API_URL}/api/journal/${chart}?start_date=${startDate}&days=${days}${outputParams()}`;
 
             // One retry: the first request to a sleeping instance often dies
             // while it wakes up, and the second one lands
@@ -1607,7 +1620,7 @@
 
             try {
                 const response = await fetchWithTimeout(
-                    `${API_URL}/api/progressions/${chart}?date=${date}&orb=${orb}${minorAspectsParam()}`);
+                    `${API_URL}/api/progressions/${chart}?date=${date}&orb=${orb}${outputParams()}`);
                 if (!response.ok) throw new Error(`Server returned ${response.status}`);
 
                 renderProgressions(await response.json());

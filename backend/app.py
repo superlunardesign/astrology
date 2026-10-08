@@ -134,6 +134,7 @@ def get_dashboard(chart_key):
         timezone = request.args.get('timezone', 'America/Los_Angeles')
         max_orb = float(request.args.get('max_orb', 3))
         include_minor = request.args.get('minor', 'false').lower() == 'true'
+        include_natal = request.args.get('natal', 'true').lower() == 'true'
 
         # Validate date
         try:
@@ -148,7 +149,14 @@ def get_dashboard(chart_key):
             return jsonify({'error': 'Invalid time format. Use HH:MM (24-hour)'}), 400
 
         dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb, time_str, timezone,
-                                           include_minor=include_minor)
+                                           include_minor=include_minor,
+                                           include_natal=include_natal)
+
+        # The page builds its own copy text (it has toggles the backend does
+        # not know about), so hand it the natal block ready-made rather than
+        # have it reassemble one from raw positions
+        dashboard['natal_reference'] = ("\n".join(tc.format_natal_reference(chart_key))
+                                        if include_natal else None)
 
         # Format aspects for display
         for aspect in dashboard['aspects']:
@@ -293,6 +301,7 @@ def compare_charts():
         charts_str = request.args.get('charts', 'christina,julian,davison')
         chart_keys = charts_str.split(',')
         include_minor = request.args.get('minor', 'false').lower() == 'true'
+        include_natal = request.args.get('natal', 'true').lower() == 'true'
 
         # Get current planetary positions (same for all charts)
         transit_positions = tc.get_transiting_positions(date_str, time_str, timezone)
@@ -317,7 +326,8 @@ def compare_charts():
         for chart_key in chart_keys:
             chart_key = chart_key.strip()
             dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb=3, time_str=time_str,
-                                               timezone=timezone, include_minor=include_minor)
+                                               timezone=timezone, include_minor=include_minor,
+                                               include_natal=include_natal)
 
             # Summarize
             # Get Moon info for this chart
@@ -345,7 +355,9 @@ def compare_charts():
                 'total_aspects': dashboard['total_aspects'],
                 'top_aspects': dashboard['aspects'],  # All aspects within 3° orb
                 'moon_info': moon_info,
-                'natal_positions': natal_positions
+                'natal_positions': natal_positions,
+                'natal_reference': ("\n".join(tc.format_natal_reference(chart_key))
+                                    if include_natal else None)
             }
 
         return jsonify({
@@ -367,11 +379,12 @@ JOURNAL_CACHE_LIMIT = 24
 _journal_cache = OrderedDict()
 
 
-def build_journal(chart_key, start_date, days, timezone, include_minor=False):
+def build_journal(chart_key, start_date, days, timezone, include_minor=False,
+                  include_natal=True):
     """Journal for one chart, reusing a recent identical one if we have it"""
     # The aspect set is part of the identity, or a journal asked for with minor
     # aspects would come back from the cache without them
-    cache_key = (chart_key, start_date, days, timezone, include_minor)
+    cache_key = (chart_key, start_date, days, timezone, include_minor, include_natal)
 
     cached = _journal_cache.get(cache_key)
     if cached is not None:
@@ -379,13 +392,30 @@ def build_journal(chart_key, start_date, days, timezone, include_minor=False):
         return cached
 
     journal = tc.generate_transit_journal(chart_key, start_date, days, timezone,
-                                          include_minor=include_minor)
+                                          include_minor=include_minor,
+                                          include_natal=include_natal)
 
     _journal_cache[cache_key] = journal
     while len(_journal_cache) > JOURNAL_CACHE_LIMIT:
         _journal_cache.popitem(last=False)
 
     return journal
+
+
+@app.route('/api/natal-reference/<chart_key>', methods=['GET'])
+def get_natal_reference(chart_key):
+    """A chart's placements, house cusps and house rulers"""
+    try:
+        reference = tc.natal_reference(chart_key)
+        reference['chart'] = chart_key
+        reference['chart_name'] = tc.get_chart_names(chart_key)[0]
+        reference['plain_text'] = "\n".join(tc.format_natal_reference(chart_key))
+
+        return jsonify(reference)
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/progressions/<chart_key>', methods=['GET'])
@@ -410,8 +440,10 @@ def get_progressions(chart_key):
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
         include_minor = request.args.get('minor', 'false').lower() == 'true'
+        include_natal = request.args.get('natal', 'true').lower() == 'true'
 
-        return jsonify(pc.generate_report(chart_key, date_str, orb, timezone, include_minor))
+        return jsonify(pc.generate_report(chart_key, date_str, orb, timezone,
+                                          include_minor, include_natal))
 
     except Exception as e:
         traceback.print_exc()
@@ -443,7 +475,8 @@ def get_transit_journal(chart_key):
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
         include_minor = request.args.get('minor', 'false').lower() == 'true'
-        journal = build_journal(chart_key, start_date, days, timezone, include_minor)
+        include_natal = request.args.get('natal', 'true').lower() == 'true'
+        journal = build_journal(chart_key, start_date, days, timezone, include_minor, include_natal)
 
         return jsonify(journal)
 
@@ -472,6 +505,7 @@ def get_journal_compare():
         chart_keys = [k.strip() for k in charts_str.split(',')]
         days = min(max(days, 1), 30)
         include_minor = request.args.get('minor', 'false').lower() == 'true'
+        include_natal = request.args.get('natal', 'true').lower() == 'true'
 
         # Validate date
         try:
@@ -483,7 +517,8 @@ def get_journal_compare():
         combined_plain_text = []
 
         for chart_key in chart_keys:
-            journal = build_journal(chart_key, start_date, days, timezone, include_minor)
+            journal = build_journal(chart_key, start_date, days, timezone,
+                                    include_minor, include_natal)
             journals[chart_key] = journal
             combined_plain_text.append(journal['plain_text'])
             combined_plain_text.append("\n" + "=" * 60 + "\n")
