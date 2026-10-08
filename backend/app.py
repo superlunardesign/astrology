@@ -133,6 +133,7 @@ def get_dashboard(chart_key):
         time_str = request.args.get('time', '12:00')
         timezone = request.args.get('timezone', 'America/Los_Angeles')
         max_orb = float(request.args.get('max_orb', 3))
+        include_minor = request.args.get('minor', 'false').lower() == 'true'
 
         # Validate date
         try:
@@ -146,7 +147,8 @@ def get_dashboard(chart_key):
         except ValueError:
             return jsonify({'error': 'Invalid time format. Use HH:MM (24-hour)'}), 400
 
-        dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb, time_str, timezone)
+        dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb, time_str, timezone,
+                                           include_minor=include_minor)
 
         # Format aspects for display
         for aspect in dashboard['aspects']:
@@ -252,9 +254,11 @@ def scan_transits(chart_key):
         aspects_str = request.args.get('aspects')
         aspect_types = aspects_str.split(',') if aspects_str else None
 
+        include_minor = request.args.get('minor', 'false').lower() == 'true'
+
         upcoming = tc.scan_future_transits(
             chart_key, start_date, end_date,
-            transit_planets, aspect_types
+            transit_planets, aspect_types, include_minor=include_minor
         )
 
         return jsonify({
@@ -288,6 +292,7 @@ def compare_charts():
         timezone = request.args.get('timezone', 'America/Los_Angeles')
         charts_str = request.args.get('charts', 'christina,julian,davison')
         chart_keys = charts_str.split(',')
+        include_minor = request.args.get('minor', 'false').lower() == 'true'
 
         # Get current planetary positions (same for all charts)
         transit_positions = tc.get_transiting_positions(date_str, time_str, timezone)
@@ -311,7 +316,8 @@ def compare_charts():
         results = {}
         for chart_key in chart_keys:
             chart_key = chart_key.strip()
-            dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb=3, time_str=time_str, timezone=timezone)
+            dashboard = tc.get_daily_dashboard(chart_key, date_str, max_orb=3, time_str=time_str,
+                                               timezone=timezone, include_minor=include_minor)
 
             # Summarize
             # Get Moon info for this chart
@@ -361,16 +367,19 @@ JOURNAL_CACHE_LIMIT = 24
 _journal_cache = OrderedDict()
 
 
-def build_journal(chart_key, start_date, days, timezone):
+def build_journal(chart_key, start_date, days, timezone, include_minor=False):
     """Journal for one chart, reusing a recent identical one if we have it"""
-    cache_key = (chart_key, start_date, days, timezone)
+    # The aspect set is part of the identity, or a journal asked for with minor
+    # aspects would come back from the cache without them
+    cache_key = (chart_key, start_date, days, timezone, include_minor)
 
     cached = _journal_cache.get(cache_key)
     if cached is not None:
         _journal_cache.move_to_end(cache_key)
         return cached
 
-    journal = tc.generate_transit_journal(chart_key, start_date, days, timezone)
+    journal = tc.generate_transit_journal(chart_key, start_date, days, timezone,
+                                          include_minor=include_minor)
 
     _journal_cache[cache_key] = journal
     while len(_journal_cache) > JOURNAL_CACHE_LIMIT:
@@ -400,7 +409,9 @@ def get_progressions(chart_key):
         except ValueError:
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
-        return jsonify(pc.generate_report(chart_key, date_str, orb, timezone))
+        include_minor = request.args.get('minor', 'false').lower() == 'true'
+
+        return jsonify(pc.generate_report(chart_key, date_str, orb, timezone, include_minor))
 
     except Exception as e:
         traceback.print_exc()
@@ -431,7 +442,8 @@ def get_transit_journal(chart_key):
         except ValueError:
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
-        journal = build_journal(chart_key, start_date, days, timezone)
+        include_minor = request.args.get('minor', 'false').lower() == 'true'
+        journal = build_journal(chart_key, start_date, days, timezone, include_minor)
 
         return jsonify(journal)
 
@@ -459,6 +471,7 @@ def get_journal_compare():
 
         chart_keys = [k.strip() for k in charts_str.split(',')]
         days = min(max(days, 1), 30)
+        include_minor = request.args.get('minor', 'false').lower() == 'true'
 
         # Validate date
         try:
@@ -470,7 +483,7 @@ def get_journal_compare():
         combined_plain_text = []
 
         for chart_key in chart_keys:
-            journal = build_journal(chart_key, start_date, days, timezone)
+            journal = build_journal(chart_key, start_date, days, timezone, include_minor)
             journals[chart_key] = journal
             combined_plain_text.append(journal['plain_text'])
             combined_plain_text.append("\n" + "=" * 60 + "\n")

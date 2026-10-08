@@ -309,5 +309,19 @@ ASPECTS = {
     'Opposition': {'angle': 180, 'orb': 3, 'symbol': '☍'}
 }
 
+# Off by default, and on a tighter orb than the majors - a minor aspect at 3°
+# is noise, and there are twice as many of them
+MINOR_ASPECTS = {
+    'Semisextile': {'angle': 30, 'orb': 1.5, 'symbol': '⚺'},
+    'Semisquare': {'angle': 45, 'orb': 1.5, 'symbol': '∠'},
+    'Quintile': {'angle': 72, 'orb': 1, 'symbol': 'Q'},
+    'Sesquiquadrate': {'angle': 135, 'orb': 1.5, 'symbol': '⚼'},
+    'Biquintile': {'angle': 144, 'orb': 1, 'symbol': 'bQ'},
+    'Quincunx': {'angle': 150, 'orb': 2, 'symbol': '⚻'},
+}
+
+# Every aspect by name, so a minor one can be looked up wherever it appears
+ALL_ASPECTS = {**ASPECTS, **MINOR_ASPECTS}
+
 # Angles
 ANGLES = ['Ascendant', 'MC', 'Descendant', 'IC']

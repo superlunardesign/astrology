@@ -174,6 +174,33 @@ check('Moon hits are timed to the minute, not bucketed on the hour',
       any(hit['time'].split(':')[1] != '00' for hit in moon_hits),
       f"(got {[h['time'] for h in moon_hits]})")
 
+print("\nMinor aspects appear only when asked for")
+print("-" * 72)
+from config import ALL_ASPECTS, MINOR_ASPECTS
+
+majors_only = tc.get_daily_dashboard('davison', '2026-09-06', max_orb=3)['aspects']
+with_minors = tc.get_daily_dashboard('davison', '2026-09-06', max_orb=3, include_minor=True)['aspects']
+
+check('majors-only run has no minor aspects',
+      not any(a['aspect'] in MINOR_ASPECTS for a in majors_only),
+      f"(got {sorted({a['aspect'] for a in majors_only})})")
+check('asking for minors adds them', len(with_minors) > len(majors_only),
+      f'({len(majors_only)} -> {len(with_minors)})')
+
+# The quincunx the Davison Moon takes from Mercury - the hit that was invisible
+# while only the five majors were counted
+quincunx = next((a for a in with_minors if a['transit_planet'] == 'Mercury'
+                 and a['natal_point'] == 'Moon' and a['aspect'] == 'Quincunx'), None)
+check('Mercury quincunx the Davison Moon is found', quincunx is not None)
+check('and it perfects when it really does',
+      quincunx and quincunx['exact_date'] == '2026-09-07',
+      f"(got {quincunx['exact_date'] if quincunx else None})")
+
+check('every minor aspect respects its own tighter orb',
+      all(a['orb'] <= ALL_ASPECTS[a['aspect']]['orb'] + 1e-9
+          for a in with_minors if a['aspect'] in MINOR_ASPECTS),
+      '(a minor aspect came back wider than its configured orb)')
+
 print("\nScanner only lists real perfections")
 print("-" * 72)
 scan = tc.scan_future_transits('christina', '2026-09-04', '2026-12-04')

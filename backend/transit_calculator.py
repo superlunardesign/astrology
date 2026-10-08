@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import pytz
 from ephemeris_manager import EphemerisManager
 from natal_charts import NatalChartManager
-from config import ASPECTS, PLANETS
+from config import ALL_ASPECTS, ASPECTS, MINOR_ASPECTS, PLANETS
 import math
 
 # An aspect counts as exact only at 0°00'. This tolerance (1 arc minute)
@@ -54,6 +54,16 @@ class TransitCalculator:
 
         return positions
 
+    def aspect_set(self, include_minor=False):
+        """
+        Which aspects to look for.
+
+        The five majors by default; the minors - semisextile, semisquare,
+        quintile, sesquiquadrate, biquintile, quincunx - only when asked for,
+        on their own tighter orbs.
+        """
+        return dict(ALL_ASPECTS) if include_minor else dict(ASPECTS)
+
     def calculate_aspect_orb(self, transit_long, natal_long, aspect_angle):
         """
         Calculate the orb of an aspect
@@ -76,7 +86,8 @@ class TransitCalculator:
 
         return orb
 
-    def find_aspects(self, chart_key, date_str, max_orb=3, time_str='12:00', timezone='America/Los_Angeles'):
+    def find_aspects(self, chart_key, date_str, max_orb=3, time_str='12:00',
+                     timezone='America/Los_Angeles', include_minor=False):
         """
         Find all active aspects for a given chart, date, and time
 
@@ -154,7 +165,7 @@ class TransitCalculator:
                 natal_long = natal_chart['positions'][natal_point]['longitude']
 
                 # Check each aspect type
-                for aspect_name, aspect_data in ASPECTS.items():
+                for aspect_name, aspect_data in self.aspect_set(include_minor).items():
                     aspect_angle = aspect_data['angle']
                     aspect_orb = aspect_data['orb']
 
@@ -627,7 +638,7 @@ class TransitCalculator:
             perfects in the window - for example when the transiting planet
             stations and turns retrograde before reaching the aspect point.
         """
-        aspect_angle = ASPECTS[aspect_name]['angle']
+        aspect_angle = ALL_ASPECTS[aspect_name]['angle']
         natal_long = self.ncm.get_natal_position(chart_key, natal_point)
 
         start = datetime.strptime(start_date, '%Y-%m-%d').replace(hour=12)
@@ -662,7 +673,7 @@ class TransitCalculator:
             Tuple of (datetime_str, orb) in format 'YYYY-MM-DD HH:MM', or
             (None, None) when the aspect never perfects in the window.
         """
-        aspect_angle = ASPECTS[aspect_name]['angle']
+        aspect_angle = ALL_ASPECTS[aspect_name]['angle']
         natal_long = self.ncm.get_natal_position(chart_key, natal_point)
 
         # Sample finely enough that the Moon cannot skip past an aspect point
@@ -702,7 +713,7 @@ class TransitCalculator:
         Returns:
             Dictionary with timeline information
         """
-        aspect_angle = ASPECTS[aspect_name]['angle']
+        aspect_angle = ALL_ASPECTS[aspect_name]['angle']
         natal_long = self.ncm.get_natal_position(chart_key, natal_point)
 
         timeline = {
@@ -994,7 +1005,7 @@ class TransitCalculator:
         Returns:
             Dict with enter, leave, passes, stations, next_exact_after_window
         """
-        aspect_angle = ASPECTS[aspect_name]['angle']
+        aspect_angle = ALL_ASPECTS[aspect_name]['angle']
         natal_long = self.ncm.get_natal_position(chart_key, natal_point)
         ref = datetime.strptime(reference_date[:10], '%Y-%m-%d').replace(hour=12)
 
@@ -1078,7 +1089,13 @@ class TransitCalculator:
             'Sextile': 'sextile',
             'Square': 'square',
             'Trine': 'trine',
-            'Opposition': 'opposite'
+            'Opposition': 'opposite',
+            'Semisextile': 'semisextile',
+            'Semisquare': 'semisquare',
+            'Quintile': 'quintile',
+            'Sesquiquadrate': 'sesquiquadrate',
+            'Biquintile': 'biquintile',
+            'Quincunx': 'quincunx'
         }
         return aspect_words.get(aspect_name, aspect_name.lower())
 
@@ -1194,7 +1211,8 @@ class TransitCalculator:
         except:
             return time_24hr
 
-    def get_daily_dashboard(self, chart_key, date_str, max_orb=3, time_str='12:00', timezone='America/Los_Angeles'):
+    def get_daily_dashboard(self, chart_key, date_str, max_orb=3, time_str='12:00',
+                            timezone='America/Los_Angeles', include_minor=False):
         """
         Get complete daily dashboard for a chart
 
@@ -1208,7 +1226,8 @@ class TransitCalculator:
         Returns:
             Dictionary with all aspects and metadata
         """
-        aspects = self.find_aspects(chart_key, date_str, max_orb, time_str, timezone)
+        aspects = self.find_aspects(chart_key, date_str, max_orb, time_str, timezone,
+                                    include_minor=include_minor)
 
         # Find the real perfections (orb 0°00') around each aspect: the last
         # one behind us and the next one ahead. Exactness is the 0°00' crossing
@@ -1219,7 +1238,7 @@ class TransitCalculator:
         for aspect in aspects:
             transit_planet = aspect['transit_planet']
             natal_long = aspect['natal_longitude']
-            aspect_angle = ASPECTS[aspect['aspect']]['angle']
+            aspect_angle = ALL_ASPECTS[aspect['aspect']]['angle']
 
             # Times of day are only meaningful for the fast movers
             forward_span, back_span, step_hours, show_time = self.get_search_window(transit_planet)
@@ -1507,7 +1526,8 @@ class TransitCalculator:
         return entry_date, exit_date
 
     def scan_future_transits(self, chart_key, start_date, end_date,
-                            transit_planets=None, aspect_types=None):
+                            transit_planets=None, aspect_types=None,
+                            include_minor=False):
         """
         Scan forward to find upcoming exact aspects (optimized version)
 
@@ -1525,7 +1545,7 @@ class TransitCalculator:
             transit_planets = list(PLANETS.keys())
 
         if aspect_types is None:
-            aspect_types = list(ASPECTS.keys())
+            aspect_types = list(self.aspect_set(include_minor).keys())
 
         start = datetime.strptime(start_date, '%Y-%m-%d')
         end = datetime.strptime(end_date, '%Y-%m-%d')
@@ -1549,7 +1569,7 @@ class TransitCalculator:
                 natal_long = natal_chart['positions'][natal_point]['longitude']
 
                 for aspect_name in aspect_types:
-                    aspect_angle = ASPECTS[aspect_name]['angle']
+                    aspect_angle = ALL_ASPECTS[aspect_name]['angle']
 
                     # Every real perfection in the range. A planet that stations
                     # short of the aspect never goes exact, so it produces no
@@ -1600,7 +1620,8 @@ class TransitCalculator:
 
         return upcoming
 
-    def generate_transit_journal(self, chart_key, start_date, days=7, timezone='America/Los_Angeles'):
+    def generate_transit_journal(self, chart_key, start_date, days=7,
+                                 timezone='America/Los_Angeles', include_minor=False):
         """
         Generate a comprehensive transit journal for a given date range
 
@@ -1669,7 +1690,8 @@ class TransitCalculator:
             date_str = check_date.strftime('%Y-%m-%d')
 
             # Get aspects for this day (excluding Moon for now - handle separately)
-            aspects = self.find_aspects(chart_key, date_str, max_orb=3, time_str='12:00', timezone=timezone)
+            aspects = self.find_aspects(chart_key, date_str, max_orb=3, time_str='12:00',
+                                        timezone=timezone, include_minor=include_minor)
 
             for aspect in aspects:
                 if aspect['transit_planet'] == 'Moon':
@@ -1732,14 +1754,15 @@ class TransitCalculator:
                 'date': date_str,
                 'day_name': day_name,
                 'date_display': date_display,
-                'moon': self._get_moon_daily_info(chart_key, date_str, timezone),
+                'moon': self._get_moon_daily_info(chart_key, date_str, timezone, include_minor),
                 'stations': stations_by_date.get(date_str, []),
                 'events': [],  # Transits entering, going exact, or leaving
                 'active_transits': []  # Ongoing transits with current orb
             }
 
             # Get all aspects for this day
-            aspects = self.find_aspects(chart_key, date_str, max_orb=3, time_str='12:00', timezone=timezone)
+            aspects = self.find_aspects(chart_key, date_str, max_orb=3, time_str='12:00',
+                                        timezone=timezone, include_minor=include_minor)
 
             for aspect in aspects:
                 if aspect['transit_planet'] == 'Moon':
@@ -1819,7 +1842,8 @@ class TransitCalculator:
             'plain_text': plain_text
         }
 
-    def _get_moon_daily_info(self, chart_key, date_str, timezone='America/Los_Angeles'):
+    def _get_moon_daily_info(self, chart_key, date_str, timezone='America/Los_Angeles',
+                             include_minor=False):
         """
         Moon information for one day: sign, house, ingress and every aspect it
         perfects, timed to the minute.
@@ -1871,7 +1895,7 @@ class TransitCalculator:
 
             natal_long = chart['positions'][natal_point]['longitude']
 
-            for aspect_name, aspect_data in ASPECTS.items():
+            for aspect_name, aspect_data in self.aspect_set(include_minor).items():
                 hits = self.find_exact_crossings(
                     'Moon', natal_long, aspect_data['angle'],
                     day_start, day_end, step_hours=2, timezone=timezone

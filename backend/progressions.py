@@ -15,7 +15,7 @@ and never perfect it.
 """
 from datetime import datetime, timedelta
 
-from config import ASPECTS, NATAL_CHARTS, NATAL_POSITIONS, PLANETS
+from config import ALL_ASPECTS, NATAL_CHARTS, NATAL_POSITIONS, PLANETS
 
 # The year the day-for-a-year rate is measured in
 TROPICAL_YEAR_DAYS = 365.242190
@@ -240,7 +240,7 @@ class ProgressionCalculator:
                 describe(upcoming[0]) if upcoming else None)
 
     def find_aspects(self, chart_key, date_str, orb=DEFAULT_ORB,
-                     timezone='America/Los_Angeles'):
+                     timezone='America/Los_Angeles', include_minor=False):
         """
         Progressed to natal, progressed to progressed, and directed to natal.
 
@@ -253,6 +253,7 @@ class ProgressionCalculator:
 
         found = {'progressed_to_natal': [], 'progressed_to_progressed': [],
                  'directed_to_natal': []}
+        aspect_set = self.tc.aspect_set(include_minor)
 
         natal_points = [p for p in ASPECT_POINTS
                         if p in NATAL_POSITIONS[chart_key]['positions']]
@@ -292,7 +293,7 @@ class ProgressionCalculator:
 
             for point in natal_points:
                 target_long = self.natal_longitude(chart_key, point)
-                for aspect_name, aspect_data in ASPECTS.items():
+                for aspect_name, aspect_data in aspect_set.items():
                     add('progressed_to_natal', planet, moving, point, target_long,
                         aspect_name, aspect_data, body, window)
 
@@ -304,7 +305,7 @@ class ProgressionCalculator:
             if planet == 'Moon':
                 continue
             target_long = progressed['positions'][planet]['longitude']
-            for aspect_name, aspect_data in ASPECTS.items():
+            for aspect_name, aspect_data in aspect_set.items():
                 add('progressed_to_progressed', 'Moon', moon, planet, target_long,
                     aspect_name, aspect_data, moon_body, self.SEARCH_WINDOWS['Moon'])
 
@@ -313,7 +314,7 @@ class ProgressionCalculator:
             body = self.directed_body(chart_key, point)
             for target in natal_points:
                 target_long = self.natal_longitude(chart_key, target)
-                for aspect_name, aspect_data in ASPECTS.items():
+                for aspect_name, aspect_data in aspect_set.items():
                     add('directed_to_natal', point, moving, target, target_long,
                         aspect_name, aspect_data, body, self.SEARCH_WINDOWS['directed'])
 
@@ -401,11 +402,11 @@ class ProgressionCalculator:
     # ------------------------------------------------------------------
 
     def generate_report(self, chart_key, date_str, orb=DEFAULT_ORB,
-                        timezone='America/Los_Angeles'):
+                        timezone='America/Los_Angeles', include_minor=False):
         """Progressions and directions for one date, with copy/paste text"""
         progressed = self.progressed_chart(chart_key, date_str, timezone)
         directed = self.directed_chart(chart_key, date_str, timezone)
-        aspects = self.find_aspects(chart_key, date_str, orb, timezone)
+        aspects = self.find_aspects(chart_key, date_str, orb, timezone, include_minor)
         moon = self.progressed_moon_cycle(chart_key, date_str, timezone)
 
         chart_name, chart_short_name = self.tc.get_chart_names(chart_key)

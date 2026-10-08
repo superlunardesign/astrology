@@ -115,6 +115,13 @@ Birth data and settings are in `backend/config.py`:
 
 ## Calculation Details
 
+### Minor Aspects
+Off by default. The **Minor Aspects** checkbox adds semisextile (30°),
+semisquare (45°), quintile (72°), sesquiquadrate (135°), biquintile (144°) and
+quincunx (150°) on tighter orbs than the majors - 1° to 2° rather than 3°,
+since there are twice as many of them. The checkbox is global: dashboard,
+scanner, comparison, journal and progressions all follow it.
+
 ### Aspects Tracked
 - Conjunction (0°) - orb 3°
 - Sextile (60°) - orb 3°
