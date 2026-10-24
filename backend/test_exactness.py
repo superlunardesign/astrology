@@ -240,6 +240,41 @@ check('and it can be turned off',
       'House rulers:' not in tc.get_daily_dashboard(
           'christina', '2026-09-04', max_orb=3, include_natal=False)['plain_text'])
 
+print("\nAn aspect names where it perfects, not just where the planet is now")
+print("-" * 72)
+# Venus retrograde at 0° Scorpio is applying to a trine of Julian's Sun at
+# 27° Aquarius - a trine Scorpio cannot make. It backs into Libra first, and
+# perfects there, which the line has to say or it reads as impossible.
+julian_today = tc.get_daily_dashboard('julian', '2026-10-24', max_orb=3)['aspects']
+venus_sun = next((a for a in julian_today if a['transit_planet'] == 'Venus'
+                  and a['natal_point'] == 'Sun' and a['aspect'] == 'Trine'), None)
+
+check('the Venus trine is found', venus_sun is not None)
+check('Venus is in Scorpio today', venus_sun and venus_sun['transit_sign'] == 'Scorpio',
+      f"(got {venus_sun['transit_sign'] if venus_sun else None})")
+check('and retrograde', venus_sun and venus_sun['is_retrograde'])
+check('it is applying, not separating', venus_sun and venus_sun['is_applying'])
+check('the line says it perfects in Libra',
+      venus_sun and "at 27°29' Libra" in venus_sun['exact_summary'],
+      f"(got {venus_sun['exact_summary'] if venus_sun else None!r})")
+check('which is a sign away from where Venus is now',
+      venus_sun and venus_sun['next_exact']['sign'] == 'Libra' != venus_sun['transit_sign'])
+check('the aspect is flagged as holding by degree, not by sign',
+      venus_sun and venus_sun['out_of_sign'])
+
+# A hit in the sign the planet already occupies stays quiet about it, or
+# every line would end up carrying a position it does not need
+same_sign = next((a for a in julian_today if a.get('next_exact')
+                  and a['next_exact']['sign'] == a['transit_sign']), None)
+if same_sign:
+    hit = same_sign['next_exact']
+    position = f"at {hit['degree']}°{hit['minute']:02d}' {hit['sign']}"
+    check('a hit in the same sign adds no position',
+          position not in same_sign['exact_summary'],
+          f"(got {same_sign['exact_summary']!r})")
+else:
+    check('a hit in the same sign adds no position', True)
+
 print("\nScanner only lists real perfections")
 print("-" * 72)
 scan = tc.scan_future_transits('christina', '2026-09-04', '2026-12-04')

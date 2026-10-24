@@ -231,9 +231,15 @@ class ProgressionCalculator:
         )
 
         def describe(hit):
+            longitude = hit.get('longitude')
             return {
                 'date': hit['datetime'].strftime('%Y-%m-%d'),
-                'retrograde': hit['retrograde']
+                'retrograde': hit['retrograde'],
+                # Where the moving point is when it perfects, which need not
+                # be the sign it occupies on the date being read
+                'sign': self.tc.get_sign_from_longitude(longitude) if longitude is not None else None,
+                'degree': int(longitude % 30) if longitude is not None else None,
+                'minute': int(((longitude % 30) % 1) * 60) if longitude is not None else None
             }
 
         return (describe(previous[-1]) if previous else None,
@@ -447,11 +453,17 @@ class ProgressionCalculator:
                     f"{item['aspect_word']} {target_label} {item['target_point']} "
                     f"in {item['target_sign']} at {self.tc.format_orb(item['orb'])}")
 
+            def with_position(hit, label):
+                text = f" | {label} {self._format_date(hit['date'])}"
+                if hit.get('sign') and hit['sign'] != item['moving_sign']:
+                    text += f" at {hit['degree']}°{hit['minute']:02d}' {hit['sign']}"
+                return text
+
             if item['previous_exact']:
-                line += f" | was exact {self._format_date(item['previous_exact']['date'])}"
+                line += with_position(item['previous_exact'], 'was exact')
             if item['next_exact']:
                 label = 'next exact' if item['previous_exact'] else 'exact'
-                line += f" | {label} {self._format_date(item['next_exact']['date'])}"
+                line += with_position(item['next_exact'], label)
             if not item['previous_exact'] and not item['next_exact']:
                 line += f" | no exact hit within {item['search_window_years']} yrs"
 

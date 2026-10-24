@@ -108,16 +108,15 @@ class TransitCalculator:
         # Get natal chart
         natal_chart = self.ncm.get_chart(chart_key)
 
-        # Motion of each transiting planet: real positions a little before and
-        # after now. Comparing positions instead of extrapolating from speed
-        # keeps applying/separating correct through a station, where the listed
-        # speed is nearly zero.
+        # Motion of each transiting planet: speeds a little either side of now,
+        # which is what tells a station from steady travel. The direction they
+        # give also decides applying from separating, and stays right through a
+        # station, where the listed speed passes through zero.
         base_dt = datetime.strptime(f"{date_str} {time_str}", '%Y-%m-%d %H:%M')
         motion = {}
         for planet_name in PLANETS.keys():
             step = timedelta(hours=1) if planet_name == 'Moon' else timedelta(hours=12)
             motion[planet_name] = {
-                'future_longitude': self.get_longitude_at(planet_name, base_dt + step, timezone),
                 'speed_before': self.get_position_at(planet_name, base_dt - step, timezone)['speed'],
                 'speed_after': self.get_position_at(planet_name, base_dt + step, timezone)['speed'],
                 'prevailing_retrograde': self.is_prevailing_retrograde(planet_name, base_dt, timezone)
@@ -177,13 +176,18 @@ class TransitCalculator:
 
                     if orb <= aspect_orb:
                         # Aspect is active!
-                        # Applying or separating, from the planet's real motion.
-                        # A planet that just turned retrograde is separating
-                        # immediately, even if it was applying yesterday.
-                        future_orb = self.calculate_aspect_orb(
-                            motion[transit_planet]['future_longitude'], natal_long, aspect_angle
+                        # Applying or separating from which way the planet is
+                        # travelling relative to the exact point. Comparing the
+                        # orb against a later moment overshoots: a planet that
+                        # perfects in fifteen minutes has a wider orb twelve
+                        # hours from now, and would read as separating.
+                        separation = min(
+                            (self.signed_separation(transit_long, target)
+                             for target in self.get_aspect_targets(natal_long, aspect_angle)),
+                            key=abs
                         )
-                        is_applying = future_orb < orb
+                        direction = -1 if is_retrograde else 1
+                        is_applying = separation * direction < 0
 
                         # Calculate strength (100% at exact, 0% at max orb)
                         strength = (1 - (orb / aspect_orb)) * 100
@@ -208,6 +212,8 @@ class TransitCalculator:
                             'station_type': station_type,
                             'motion': motion_state,
                             'motion_marker': marker,
+                            'out_of_sign': self.is_out_of_sign(
+                                transit_long, natal_long, aspect_angle),
                             'transit_house': transit_house
                         })
 
@@ -410,6 +416,9 @@ class TransitCalculator:
                 position = position_at(hit_jd)
                 crossings.append({
                     'datetime': self.em.get_datetime_from_julian_day(hit_jd, timezone),
+                    # Where the planet actually is when it perfects, which is
+                    # not always the sign it is in today
+                    'longitude': position['longitude'],
                     'orb': abs(self.signed_separation(position['longitude'], target_long)),
                     'retrograde': position['speed'] < 0
                 })
@@ -482,8 +491,11 @@ class TransitCalculator:
                 speed_after = position_at(closest_jd + 0.5)['speed']
 
                 if (speed_before < 0) != (speed_after < 0):
+                    position = self.em.get_planet_position(transit_planet, closest_jd) \
+                        if not callable(transit_planet) else position_at(closest_jd)
                     crossings.append({
                         'datetime': self.em.get_datetime_from_julian_day(closest_jd, timezone),
+                        'longitude': position['longitude'],
                         'orb': abs(closest_sep),
                         'retrograde': speed_after < 0
                     })
@@ -1083,6 +1095,20 @@ class TransitCalculator:
                  'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
         return signs[int(longitude / 30)]
 
+    def is_out_of_sign(self, transit_long, natal_long, aspect_angle):
+        """
+        Whether an aspect holds by degree but not by sign.
+
+        Venus at 0° Scorpio trines a point at 27° Aquarius by degree, while
+        Scorpio to Aquarius is a square by sign. Those are real aspects, and
+        they are the ones that read as impossible unless they are named.
+        """
+        signs_apart = abs(int(transit_long / 30) - int(natal_long / 30))
+        if signs_apart > 6:
+            signs_apart = 12 - signs_apart
+
+        return abs(signs_apart * 30 - aspect_angle) > 1e-9
+
     def get_aspect_word(self, aspect_name):
         """Get the word form of an aspect for text output"""
         aspect_words = {
@@ -1127,6 +1153,13 @@ class TransitCalculator:
                 text += f" ~{self.format_time_12hr(hit_dt.strftime('%H:%M'))} {self.timezone_label(hit_dt)}"
             if hit.get('retrograde'):
                 text += ' (Rx)'
+
+            # Where it perfects, when that is not the sign the planet is in
+            # now. A retrograde often goes exact a sign back from where it
+            # sits today, which reads as impossible unless it is said.
+            if hit.get('sign') and hit['sign'] != aspect.get('transit_sign'):
+                text += f" at {hit['degree']}°{hit['minute']:02d}' {hit['sign']}"
+
             return text
 
         def format_stations():
@@ -1382,11 +1415,17 @@ class TransitCalculator:
             )
 
             def describe(hit):
+                # Where the planet is when it perfects - a retrograde can go
+                # exact a sign back from where it sits today
+                longitude = hit.get('longitude')
                 return {
                     'date': hit['datetime'].strftime('%Y-%m-%d'),
                     'datetime': hit['datetime'].strftime('%Y-%m-%d %H:%M'),
                     'orb': hit['orb'],
-                    'retrograde': hit['retrograde']
+                    'retrograde': hit['retrograde'],
+                    'sign': self.get_sign_from_longitude(longitude) if longitude is not None else None,
+                    'degree': int(longitude % 30) if longitude is not None else None,
+                    'minute': int(((longitude % 30) % 1) * 60) if longitude is not None else None
                 }
 
             aspect['last_exact'] = describe(past_hits[-1]) if past_hits else None
@@ -1470,13 +1509,14 @@ class TransitCalculator:
             else:
                 aspect['show_previous_exact'] = bool(aspect['previous_exact'])
 
+            # Signs first: the exactness text compares where the aspect
+            # perfects against where the planet is now, so it needs them
+            aspect['transit_sign'] = self.get_sign_from_longitude(aspect['transit_longitude'])
+            aspect['natal_sign'] = self.get_sign_from_longitude(aspect['natal_longitude'])
+
             # Ready-made copy for the UI, so the app and the copy/paste text
             # always describe exactness the same way
             aspect['exact_summary'] = self.format_exactness(aspect).lstrip(' |').strip()
-
-            # Add sign information for plain text output
-            aspect['transit_sign'] = self.get_sign_from_longitude(aspect['transit_longitude'])
-            aspect['natal_sign'] = self.get_sign_from_longitude(aspect['natal_longitude'])
 
         # Generate plain text list
         plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects,
@@ -1589,7 +1629,8 @@ class TransitCalculator:
             motion_mark = self.get_motion_marker(aspect)
 
             line = (f"{transit_planet}{motion_mark} in {transit_sign} {aspect_word} "
-                    f"{chart_short_name}'s natal {natal_point} in {natal_sign} at {orb_str} {direction}")
+                    f"{chart_short_name}'s natal {natal_point} in {natal_sign} "
+                    f"at {orb_str} {direction}")
 
             # Exact means the aspect really reaches 0°00'. A planet that
             # stations before then never goes exact, so say that instead.
