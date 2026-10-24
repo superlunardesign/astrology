@@ -460,7 +460,7 @@ class ProgressionCalculator:
                 return text
 
             if item['previous_exact']:
-                line += with_position(item['previous_exact'], 'was exact')
+                line += with_position(item['previous_exact'], 'was last exact')
             if item['next_exact']:
                 label = 'next exact' if item['previous_exact'] else 'exact'
                 line += with_position(item['next_exact'], label)

@@ -1193,12 +1193,12 @@ class TransitCalculator:
 
         show_previous = aspect.get('show_previous_exact')
         if show_previous is None:
-            show_previous = bool(previous_exact) and not aspect['is_applying']
+            show_previous = bool(previous_exact)
 
         parts = ''
 
         if previous_exact and show_previous:
-            parts += format_hit(previous_exact, 'Was exact')
+            parts += format_hit(previous_exact, 'Was last exact')
             if aspect.get('final_pass'):
                 parts += ' (final pass)'
 
@@ -1255,6 +1255,37 @@ class TransitCalculator:
     HOUSE_NAMES = ['1st', '2nd', '3rd', '4th', '5th', '6th',
                    '7th', '8th', '9th', '10th', '11th', '12th']
 
+    def chart_birth_jd(self, chart_key):
+        """
+        The moment a chart begins, as a Julian day.
+
+        A person's birth, or for the Davison the relationship chart's own
+        date. None when the chart has no birth data to read.
+        """
+        birth = NATAL_CHARTS.get(chart_key)
+        if not birth:
+            return None
+        return self.em.get_julian_day(
+            birth['date'], birth['time'], birth['location']['timezone'])
+
+    def is_within_lifetime(self, chart_key, hit):
+        """
+        Did this perfection happen after the chart began?
+
+        Transits are searched a fixed span back, which for a young chart can
+        reach past its own beginning. A pass from before the birth is nobody's
+        transit and is not worth quoting.
+
+        The birth day itself counts. A slow planet sitting on its own natal
+        degree perfects within hours of the birth moment, and whether the
+        crossing refines to just before or just after it is noise - that pass
+        is the chart's own, either way.
+        """
+        birth = NATAL_CHARTS.get(chart_key)
+        if not birth or not hit:
+            return True
+        return (hit.get('date') or hit['datetime'][:10]) >= birth['date']
+
     def natal_reference(self, chart_key):
         """
         A chart's own placements, house cusps and house rulers.
@@ -1267,9 +1298,7 @@ class TransitCalculator:
         positions = chart['positions']
         cusps = chart.get('house_cusps') or []
 
-        birth = NATAL_CHARTS.get(chart_key)
-        birth_jd = self.em.get_julian_day(
-            birth['date'], birth['time'], birth['location']['timezone']) if birth else None
+        birth_jd = self.chart_birth_jd(chart_key)
 
         def describe(point, longitude):
             retrograde = False
@@ -1496,18 +1525,15 @@ class TransitCalculator:
             else:
                 aspect['show_next_exact'] = False
 
-            # The pass behind us is worth quoting when the aspect is separating
-            # from it, or when a slow planet stationed since - that station is
-            # what makes this the same retrograde series rather than old news.
-            if aspect['previous_exact'] and aspect['is_applying']:
-                previous_dt = datetime.strptime(aspect['previous_exact']['datetime'], '%Y-%m-%d %H:%M')
-                aspect['show_previous_exact'] = bool(
-                    not show_time
-                    and self.find_stations(transit_planet, previous_dt, base_dt,
-                                           timezone=timezone, step_hours=min(step_hours, 24))
-                )
-            else:
-                aspect['show_previous_exact'] = bool(aspect['previous_exact'])
+            # The pass behind us is always worth quoting, applying or
+            # separating - knowing when this last perfected is context for
+            # what it is doing now. The one limit is the chart's own
+            # lifetime: a perfection from before the birth moment belongs to
+            # nobody and is dropped.
+            aspect['show_previous_exact'] = bool(
+                aspect['previous_exact']
+                and self.is_within_lifetime(chart_key, aspect['previous_exact'])
+            )
 
             # Signs first: the exactness text compares where the aspect
             # perfects against where the planet is now, so it needs them

@@ -126,7 +126,7 @@ check('the station that turns it back is named',
       any(s['date'] == '2026-09-10' for s in uranus_venus['stations']),
       f"(got {uranus_venus['stations']})")
 check('both passes make the copy',
-      'Was exact 08-14-2026' in uranus_venus['exact_summary']
+      'Was last exact 08-14-2026' in uranus_venus['exact_summary']
       and 'Next exact 10-08-2026 (Rx)' in uranus_venus['exact_summary'],
       f"(got {uranus_venus['exact_summary']!r})")
 
@@ -145,13 +145,40 @@ check('Pluto conjunct Mercury is marked final',
       pluto_mercury['final_pass'] and pluto_mercury['next_exact'] is None,
       f"(got final_pass={pluto_mercury['final_pass']}, next={pluto_mercury['next_exact']})")
 
-print("\nA fast applying aspect quotes the hit it is heading for")
+print("\nEvery aspect says when it last perfected, and when it next will")
 print("-" * 72)
 venus_sun = next(a for a in julian if a['transit_planet'] == 'Venus'
                  and a['natal_point'] == 'Sun' and a['aspect'] == 'Trine')
 check('applying now', venus_sun['is_applying'])
-check('quotes the upcoming hit, not last spring',
-      venus_sun['exact_summary'].startswith('Exact 09-'), f"(got {venus_sun['exact_summary']!r})")
+check('the hit it is heading for is quoted',
+      'Next exact 09-06-2026' in venus_sun['exact_summary'],
+      f"(got {venus_sun['exact_summary']!r})")
+check('and so is the pass behind it, applying or not',
+      venus_sun['exact_summary'].startswith('Was last exact 05-16-2026'),
+      f"(got {venus_sun['exact_summary']!r})")
+
+# Every aspect with a pass behind it says so, whichever way it is moving
+missing = [f"{a['transit_planet']} {a['aspect']} {a['natal_point']}"
+           for a in julian if a['previous_exact'] and not a['show_previous_exact']]
+check('no aspect keeps its last perfection to itself', not missing,
+      f'({len(missing)} silent: {missing[:3]})')
+
+print("\nA pass from before the chart existed is not quoted")
+print("-" * 72)
+# Superlunar's chart begins 2022-03-01, and a fast planet is searched 400
+# days back - far enough to turn up perfections that happened before there
+# was anything to transit.
+young = tc.get_daily_dashboard('superlunar', '2022-03-15', max_orb=3)['aspects']
+pre_birth = [a for a in young
+             if a['show_previous_exact'] and a['previous_exact']['date'] < '2022-03-01']
+check('nothing earlier than the chart itself is quoted', not pre_birth,
+      f"({[(a['transit_planet'], a['previous_exact']['date']) for a in pre_birth[:3]]})")
+check('and the search really did reach back that far',
+      any(a['previous_exact'] and a['previous_exact']['date'] < '2022-03-01'
+          for a in young))
+check('a pass on the birth day itself still counts',
+      any(a['show_previous_exact'] and a['previous_exact']['date'] == '2022-03-01'
+          for a in young))
 
 print("\nJournal reports the station, not a false exact")
 print("-" * 72)
