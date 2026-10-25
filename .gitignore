@@ -16,6 +16,7 @@ dist/
 .DS_Store
 node_modules/
 .env
-ephemeris/
+# The Swiss Ephemeris data files are committed - see ephemeris/README.md.
+# Without them swisseph silently falls back to its built-in Moshier ephemeris.
 *.db
 *.sqlite

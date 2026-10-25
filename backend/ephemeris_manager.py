@@ -3,7 +3,7 @@ Swiss Ephemeris Manager
 Handles all astronomical calculations using pyswisseph
 """
 import swisseph as swe
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import pytz
 from config import EPHEMERIS_PATH, PLANETS
 import os
@@ -11,11 +11,33 @@ import os
 class EphemerisManager:
     """Manages Swiss Ephemeris calculations"""
 
+    # Crossing searches sample the same planet on the same grid of Julian Days
+    # over and over, so positions are memoised.
+    CACHE_LIMIT = 200000
+
     def __init__(self):
         """Initialize Swiss Ephemeris"""
         # Create ephemeris directory if it doesn't exist
         os.makedirs(EPHEMERIS_PATH, exist_ok=True)
         swe.set_ephe_path(EPHEMERIS_PATH)
+        self._position_cache = {}
+        self.ephemeris_source = self._detect_ephemeris_source()
+
+    def _detect_ephemeris_source(self):
+        """
+        Which ephemeris swisseph actually used, not which one we asked for.
+
+        Asking for the Swiss files when they are missing does not raise - it
+        quietly returns a Moshier position instead, so the only way to know is
+        to look at the flag that comes back.
+        """
+        _, flag = swe.calc_ut(2451545.0, swe.SUN, swe.FLG_SWIEPH)
+
+        if flag & swe.FLG_MOSEPH:
+            return 'Moshier (built-in - Swiss Ephemeris files not found)'
+        if flag & swe.FLG_JPLEPH:
+            return 'JPL'
+        return 'Swiss Ephemeris files'
 
     def get_julian_day(self, date_str, time_str, tz_str):
         """
@@ -57,6 +79,50 @@ class EphemerisManager:
 
         return jd
 
+    def get_julian_day_from_datetime(self, dt, tz_str='UTC'):
+        """
+        Convert a datetime to Julian Day (keeps seconds, unlike get_julian_day)
+
+        Args:
+            dt: datetime object (naive datetimes are read in tz_str)
+            tz_str: Timezone string (e.g., 'America/Los_Angeles')
+
+        Returns:
+            Julian Day number (float)
+        """
+        tz = pytz.timezone(tz_str)
+
+        if dt.tzinfo is None:
+            dt_tz = tz.localize(dt)
+        else:
+            dt_tz = dt.astimezone(tz)
+
+        dt_utc = dt_tz.astimezone(pytz.UTC)
+
+        return swe.julday(
+            dt_utc.year,
+            dt_utc.month,
+            dt_utc.day,
+            dt_utc.hour + dt_utc.minute / 60.0 + dt_utc.second / 3600.0
+        )
+
+    def get_datetime_from_julian_day(self, jd, tz_str='UTC'):
+        """
+        Convert a Julian Day back to a naive datetime in tz_str
+
+        Args:
+            jd: Julian Day number
+            tz_str: Timezone string (e.g., 'America/Los_Angeles')
+
+        Returns:
+            datetime (naive, expressed in tz_str)
+        """
+        year, month, day, hour_float = swe.revjul(jd)
+
+        dt_utc = datetime(year, month, day, tzinfo=pytz.UTC) + timedelta(hours=hour_float)
+
+        return dt_utc.astimezone(pytz.timezone(tz_str)).replace(tzinfo=None)
+
     def get_planet_position(self, planet_name, jd):
         """
         Get position of a planet at a given Julian Day
@@ -71,29 +137,39 @@ class EphemerisManager:
         if planet_name not in PLANETS:
             raise ValueError(f"Unknown planet: {planet_name}")
 
+        # Round to the millisecond so repeated searches share cache entries
+        cache_key = (planet_name, round(jd, 8))
+        cached = self._position_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         planet_id = PLANETS[planet_name]
 
         # Handle South Node as North Node + 180°
         if planet_name == 'South Node':
             planet_id = PLANETS['North Node']
             result = swe.calc_ut(jd, planet_id)
-            longitude = (result[0][0] + 180) % 360
-            return {
-                'longitude': longitude,
+            position = {
+                'longitude': (result[0][0] + 180) % 360,
+                'latitude': result[0][1],
+                'distance': result[0][2],
+                'speed': result[0][3]
+            }
+        else:
+            # Calculate planet position
+            result = swe.calc_ut(jd, planet_id)
+            position = {
+                'longitude': result[0][0],
                 'latitude': result[0][1],
                 'distance': result[0][2],
                 'speed': result[0][3]
             }
 
-        # Calculate planet position
-        result = swe.calc_ut(jd, planet_id)
+        if len(self._position_cache) >= self.CACHE_LIMIT:
+            self._position_cache.clear()
+        self._position_cache[cache_key] = position
 
-        return {
-            'longitude': result[0][0],
-            'latitude': result[0][1],
-            'distance': result[0][2],
-            'speed': result[0][3]
-        }
+        return position
 
     def get_house_cusps(self, jd, latitude, longitude, house_system='P'):
         """
