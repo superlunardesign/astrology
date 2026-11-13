@@ -127,6 +127,43 @@ virtualenv's `python` if you made one.
 
 ---
 
+## Telling the assistant how you want it to read
+
+The server sends a client its own instructions on connecting - call the
+tools, don't recall positions, quote exact degrees, never drop a retrograde.
+That covers the facts. How you want a reading *written* is a separate thing,
+and belongs in the assistant rather than the server.
+
+Paste this into a Custom GPT's instructions, or a ChatGPT Project's custom
+instructions, and every chat in it starts there:
+
+> When asked about astrology, use the current global position of the planets,
+> transits to the charts mentioned, what houses and signs are being activated
+> or are involved, and be cognizant of if there are retrograde passes,
+> currently planets in retrograde, and how many passes may have already been
+> made by a specific transit or will eventually be made. Consider the
+> difference in retrograde versus direct and how those energies are different
+> if it is worth noting. Don't over-assume everything is relationship related,
+> but don't hide from actual observations that seem connected.
+>
+> Even though we already know you cannot guarantee outcomes or predict the
+> future, we want to treat this as predictive and weigh the astrology more
+> heavily than what real life context suggests. This is because humans are not
+> perfect. They may say one thing and later do another. Take an action that
+> means to be rigid in the moment and later go against it, etc. Therefore,
+> weigh the astrology more heavily and only use real life context as just
+> that - context.
+>
+> I am Christina. Julian is my partner. The "davison" chart is our
+> relationship chart. If I say "me" or "my chart" use christina; "us" or "our
+> chart" means davison. Ask which chart I mean if it is genuinely ambiguous.
+
+The pass counting in the first paragraph is `transit_timeline`'s job - it
+returns every perfection in a transit's window, so "second of three passes"
+is something the assistant can state rather than estimate. `transits_on_date`
+names the houses on both sides of every aspect, so those do not have to be
+worked out either.
+
 ## Questions it answers well
 
 > Where was Mars when I was born, and when did it next come back to that degree?

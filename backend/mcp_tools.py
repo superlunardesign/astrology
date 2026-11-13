@@ -388,15 +388,20 @@ where in the zodiac it perfects. This is the app's daily reading.
     'include_natal': {'type': 'boolean',
                       'description': 'Prepend the chart\'s own placements. '
                                      'Default true.'},
+    'include_houses': {'type': 'boolean',
+                       'description': 'Name the house the transiting planet is '
+                                      'moving through and the house the natal '
+                                      'placement sits in. Default true.'},
     'timezone': TIMEZONE
 }, ['chart']))
 def transits_on_date(chart, date=None, time='12:00', max_orb=3,
                      include_minor=False, include_natal=True,
-                     timezone=DEFAULT_TIMEZONE):
+                     include_houses=True, timezone=DEFAULT_TIMEZONE):
     date = date or today(timezone)
     result = tc.get_daily_dashboard(chart, date, max_orb=max_orb, time_str=time,
                                     timezone=timezone, include_minor=include_minor,
-                                    include_natal=include_natal)
+                                    include_natal=include_natal,
+                                    include_houses=include_houses)
     return {
         'text': result['plain_text'],
         'data': {'chart': chart, 'date': date,

@@ -214,7 +214,9 @@ class TransitCalculator:
                             'motion_marker': marker,
                             'out_of_sign': self.is_out_of_sign(
                                 transit_long, natal_long, aspect_angle),
-                            'transit_house': transit_house
+                            'transit_house': transit_house,
+                            'natal_house': self.ncm.get_house_for_longitude(
+                                chart_key, natal_long)
                         })
 
         # Sort by orb (closest first)
@@ -1400,7 +1402,7 @@ class TransitCalculator:
 
     def get_daily_dashboard(self, chart_key, date_str, max_orb=3, time_str='12:00',
                             timezone='America/Los_Angeles', include_minor=False,
-                            include_natal=True):
+                            include_natal=True, include_houses=False):
         """
         Get complete daily dashboard for a chart
 
@@ -1546,7 +1548,8 @@ class TransitCalculator:
 
         # Generate plain text list
         plain_text_lines = self.generate_plain_text_list(chart_key, date_str, time_str, aspects,
-                                                         timezone, include_natal)
+                                                         timezone, include_natal,
+                                                         include_houses)
 
         chart_name, chart_short_name = self.get_chart_names(chart_key)
 
@@ -1575,8 +1578,16 @@ class TransitCalculator:
         return chart['name'], chart.get('short_name', chart['name'])
 
     def generate_plain_text_list(self, chart_key, date_str, time_str, aspects,
-                                 timezone='America/Los_Angeles', include_natal=True):
-        """Generate a plain text list of aspects for easy copying"""
+                                 timezone='America/Los_Angeles', include_natal=True,
+                                 include_houses=False):
+        """
+        Generate a plain text list of aspects for easy copying
+
+        include_houses names the house each side of the aspect falls in -
+        which house the transiting planet is moving through, and which one
+        the natal placement sits in. Off by default: the app has its own
+        switch for it, and this text is what its copy box shows.
+        """
         chart_name, chart_short_name = self.get_chart_names(chart_key)
         time_12hr = self.format_time_12hr(time_str)
 
@@ -1654,9 +1665,14 @@ class TransitCalculator:
             # (Rx) for retrograde, (SR)/(SD) on the day the planet stations
             motion_mark = self.get_motion_marker(aspect)
 
-            line = (f"{transit_planet}{motion_mark} in {transit_sign} {aspect_word} "
-                    f"{chart_short_name}'s natal {natal_point} in {natal_sign} "
-                    f"at {orb_str} {direction}")
+            transit_house = (f" ({self.HOUSE_NAMES[aspect['transit_house'] - 1]} house)"
+                             if include_houses and aspect.get('transit_house') else '')
+            natal_house = (f" ({self.HOUSE_NAMES[aspect['natal_house'] - 1]} house)"
+                           if include_houses and aspect.get('natal_house') else '')
+
+            line = (f"{transit_planet}{motion_mark} in {transit_sign}{transit_house} "
+                    f"{aspect_word} {chart_short_name}'s natal {natal_point} "
+                    f"in {natal_sign}{natal_house} at {orb_str} {direction}")
 
             # Exact means the aspect really reaches 0°00'. A planet that
             # stations before then never goes exact, so say that instead.

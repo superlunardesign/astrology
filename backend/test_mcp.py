@@ -323,8 +323,8 @@ print("-" * 72)
 # assistant and the web app will tell the user different things
 dashboard = mcp_tools.tc.get_daily_dashboard('julian', '2026-11-13', max_orb=3)
 check('transits_on_date is the dashboard the app shows',
-      call('transits_on_date', chart='julian', date='2026-11-13')
-      == dashboard['plain_text'])
+      call('transits_on_date', chart='julian', date='2026-11-13',
+           include_houses=False) == dashboard['plain_text'])
 
 timeline = call('transit_timeline', chart='julian', transit_planet='Saturn',
                 natal_point='Moon', aspect='Conjunction', date='2026-11-13')
@@ -349,6 +349,25 @@ check('a degree search in the sky finds the same dates as the chart search',
               'julian', 'Saturn', 'Moon', 'Conjunction',
               '2026-11-13')['exact_dates']],
       f"(sky {[c['date'] for c in crossings['crossings']]})")
+
+print("\nA reading names the houses involved")
+print("-" * 72)
+# The standing instructions ask the assistant to speak to the houses being
+# activated, so the lines have to carry them rather than leave it guessing
+with_houses = call('transits_on_date', chart='julian', date='2026-11-13')
+transit_lines = [line for line in with_houses.split('\n')
+                 if "'s natal " in line and ' at ' in line]
+check('there are transit lines to check', len(transit_lines) > 5)
+check('every one names the house the transiting planet moves through',
+      all(' house)' in line.split(' natal ')[0] for line in transit_lines),
+      f'({[l for l in transit_lines if " house)" not in l.split(" natal ")[0]][:1]})')
+check('and the house the natal placement sits in',
+      all(' house)' in line.split(' natal ')[1] for line in transit_lines),
+      f'({[l for l in transit_lines if " house)" not in l.split(" natal ")[1]][:1]})')
+check('the app\'s own copy text is left as it was',
+      ' house)' not in mcp_tools.tc.get_daily_dashboard(
+          'julian', '2026-11-13', max_orb=3)['plain_text'].split(
+              'PLANETARY TRANSITS')[1])
 
 print("\nA search too wide to be honest is refused rather than guessed at")
 print("-" * 72)

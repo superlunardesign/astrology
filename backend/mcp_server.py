@@ -45,7 +45,26 @@ never having perfected it, and a retrograde that crosses the same point three
 times gets three dates.
 
 For anything with a date, a planet or a range in it, call the tool that fits
-it. Do not work positions out from memory - ask for them.
+it. Do not work positions out from memory - ask for them, and quote the
+degrees, signs and dates as they come back rather than rounding them into
+"early Libra" or "later this month".
+
+Reading a chart usually takes more than one call:
+
+  - sky_on_date for where the planets are now, which is the context
+    everything else sits in
+  - transits_on_date for what is touching a chart, with the house each
+    transiting planet is moving through and the house each natal placement
+    sits in
+  - transit_timeline when the passes matter: it lists every perfection in
+    the window, so it is what tells you whether a transit has made one pass
+    of three, or is on its last
+  - retrograde_periods and stations for what is retrograde now, and when it
+    turns
+
+Retrograde is never a detail to drop. Say when a transiting planet is
+retrograde, and say when a transit perfects again after a station rather
+than letting it read as finished.
 """.strip()
 
 # JSON-RPC error codes
