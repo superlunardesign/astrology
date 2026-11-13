@@ -24,6 +24,14 @@ CORS(app)
 tc = TransitCalculator()
 pc = ProgressionCalculator(tc)
 
+# The same engine, offered to chat assistants: MCP at /mcp, and the same
+# tools as plain REST at /api/tools for clients that do not speak it.
+import mcp_tools
+from mcp_http import mcp_blueprint
+
+mcp_tools.use_engine(tc, pc)
+app.register_blueprint(mcp_blueprint)
+
 # Background job storage
 export_jobs = {}  # job_id -> {status, progress, result, error, created_at}
 

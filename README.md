@@ -31,6 +31,13 @@ A web application for tracking transits to multiple natal charts over time, with
 - Identify overlapping challenging aspects
 - Find "crisis windows" and "opportunity windows"
 
+### Ask it questions from ChatGPT or Claude
+- The same engine as a set of tools a chat assistant can call, over MCP or as
+  a plain REST API with an OpenAPI document
+- The sky on its own as well as the stored charts: where a planet was on any
+  date, when it changed sign, when it was retrograde, when it crossed a degree
+- See [MCP.md](MCP.md) for the tools and how to connect one
+
 ## Tech Stack
 
 - **Backend**: Python 3.11 + Flask + Swiss Ephemeris (pyswisseph)
