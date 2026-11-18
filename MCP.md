@@ -35,8 +35,15 @@ anywhere and works on any ChatGPT plan that can build a Custom GPT.
 - `list_charts` — what charts exist
 - `natal_chart` — placements, cusps, house rulers
 - `transits_on_date` — the app's daily reading
-- `transit_timeline` — one transit from entering orb to leaving it
-- `scan_transits` — everything perfecting between two dates
+- `transit_passes` — one transit searched across years or a whole life:
+  every pass it makes, grouped into the approach it belongs to, each marked
+  direct or retrograde, with the age it falls at. This is the one for "when
+  does Saturn next conjoin my Moon", "how many passes does this make", "has
+  this ever happened to me"
+- `transit_timeline` — one transit from entering orb to leaving it, around a
+  date it is actually near
+- `scan_transits` — everything perfecting between two dates, narrowable to
+  particular planets, aspects or natal placements
 - `transit_journal` — the day-by-day writeup, up to 30 days
 - `progressions` — secondary progressions and solar arc
 
@@ -175,6 +182,12 @@ worked out either.
 > What's perfecting for Julian between now and the end of February?
 
 > When does Mercury go retrograde next and what degrees does it cover?
+
+> When does Saturn next conjoin my Moon, and how many passes does it make?
+
+> Has transiting Pluto ever squared my Sun? How old was I?
+
+> Everything the outer planets do to my Ascendant between now and 2050.
 
 Anything with a date, a planet or a range in it should be sent to a tool. The
 server's instructions tell the assistant as much, but if you see it answering
