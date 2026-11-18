@@ -4,7 +4,9 @@ services:
     env: python
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --chdir backend app:app --bind 0.0.0.0:$PORT
+    # One worker with threads: journals share the position cache, and the
+    # 180s timeout covers a cold multi-chart journal on a slow instance
+    startCommand: gunicorn --chdir backend app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

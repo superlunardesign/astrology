@@ -20,6 +20,8 @@ class NatalChartManager:
         for chart_key, chart_data in NATAL_POSITIONS.items():
             self.charts[chart_key] = {
                 'name': chart_data['name'],
+                # Short form for inline use; the full name heads the output
+                'short_name': chart_data.get('short_name', chart_data['name']),
                 'birth_data': chart_data['birth_data'],
                 'positions': {},
                 'house_cusps': []  # Will be populated by _calculate_house_cusps
