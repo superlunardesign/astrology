@@ -1722,9 +1722,78 @@ class TransitCalculator:
 
         return entry_date, exit_date
 
+    # Longest a planet's retrograde loop can carry it back over the same
+    # point: the span from the first pass of an approach to the last, with
+    # room to spare. Beyond this the planet is coming round a whole cycle
+    # later, which is a different transit. The Sun and Moon never loop, so
+    # theirs only have to be shorter than their own return.
+    SAME_APPROACH_DAYS = {
+        'Moon': 3, 'Sun': 5, 'Mercury': 90, 'Venus': 150, 'Mars': 250,
+        'Jupiter': 330, 'Saturn': 400, 'Uranus': 400, 'Neptune': 400,
+        'Pluto': 400, 'North Node': 60, 'South Node': 60
+    }
+
+    def group_into_series(self, hits):
+        """
+        Gather perfections into the approaches they belong to.
+
+        A slow planet crossing a point while it stations gives three dates
+        months apart, and they are one transit, not three.
+
+        Two perfections belong to the same approach when the planet was
+        looping back over the same point rather than coming round again a
+        whole cycle later. A loop is bounded by how long that planet can
+        stay retrograde, so the gap between passes decides it - with orb
+        windows that overlap counting too, which catches a tight pair the
+        gap alone would split. A planet does leave orb between the passes
+        of one approach, so overlap on its own is not enough.
+
+        Takes hits from scan_future_transits for ONE planet, point and
+        aspect, in date order. Returns a list of series, each with its
+        passes, its span, and the stations inside it.
+        """
+        series = []
+
+        for hit in hits:
+            previous = series[-1] if series else None
+            continues = False
+
+            if previous is not None:
+                last = previous['passes'][-1]
+                gap = (datetime.strptime(hit['exact_date'], '%Y-%m-%d')
+                       - datetime.strptime(last['exact_date'], '%Y-%m-%d')).days
+                within_loop = gap <= self.SAME_APPROACH_DAYS.get(
+                    hit['transit_planet'], 400)
+                overlapping = bool(
+                    last.get('exit_date') and hit.get('entry_date')
+                    and hit['entry_date'] <= last['exit_date'])
+                continues = within_loop or overlapping
+
+            if continues:
+                previous['passes'].append(hit)
+            else:
+                series.append({'passes': [hit]})
+
+        for group in series:
+            first, last = group['passes'][0], group['passes'][-1]
+            group['count'] = len(group['passes'])
+            group['first_exact'] = first['exact_date']
+            group['last_exact'] = last['exact_date']
+            group['in_orb_from'] = first.get('entry_date')
+            group['in_orb_until'] = last.get('exit_date')
+            # One station can turn up under several passes of the same
+            # approach, so they are collected by date
+            stations = {}
+            for hit in group['passes']:
+                for station in hit.get('stations') or []:
+                    stations[station['date']] = station
+            group['stations'] = [stations[date] for date in sorted(stations)]
+
+        return series
+
     def scan_future_transits(self, chart_key, start_date, end_date,
                             transit_planets=None, aspect_types=None,
-                            include_minor=False):
+                            include_minor=False, natal_points=None):
         """
         Scan forward to find upcoming exact aspects (optimized version)
 
@@ -1734,6 +1803,9 @@ class TransitCalculator:
             end_date: End date (YYYY-MM-DD)
             transit_planets: List of planets to track (None = all)
             aspect_types: List of aspect types (None = all)
+            natal_points: List of natal placements to watch (None = all).
+                          Narrowing to one point is what makes a search over
+                          decades cheap enough to ask casually.
 
         Returns:
             List of upcoming exact aspects
@@ -1750,7 +1822,8 @@ class TransitCalculator:
 
         upcoming = []
         natal_chart = self.ncm.get_chart(chart_key)
-        natal_points = list(PLANETS.keys()) + ['Ascendant', 'MC', 'Descendant', 'IC']
+        if natal_points is None:
+            natal_points = list(PLANETS.keys()) + ['Ascendant', 'MC', 'Descendant', 'IC']
 
         fast_planets = ['Moon', 'Sun', 'Mercury', 'Venus', 'Mars']
 

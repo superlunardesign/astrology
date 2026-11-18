@@ -11,7 +11,7 @@ what an assistant reads back to a person, so it is written the way the app's
 copy/paste blocks are - complete sentences of real positions and dates, with
 nothing summarised away.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytz
 
@@ -449,7 +449,10 @@ def transit_timeline(chart, transit_planet, natal_point, aspect, date=None,
             ('  Exact                  ' + ', '.join(
                 f"{hit['date']}{' (Rx)' if hit.get('retrograde') else ''}"
                 for hit in exacts)) if exacts else
-            '  Never reaches 0°00\' in this window',
+            '  Not in orb around this date. This tool only looks at the\n'
+            '  window around the date given - it is not saying the transit\n'
+            '  never happens. Use transit_passes to search years or a whole\n'
+            '  lifetime for it.',
             *[f"  Station                {s['type']} on {s['date']}"
               for s in (timeline.get('stations') or [])],
             date_line('Leaves 1° orb', timeline.get('leave_1deg')),
@@ -457,6 +460,131 @@ def transit_timeline(chart, transit_planet, natal_point, aspect, date=None,
             date_line('Leaves 5° orb', timeline.get('leave_5deg'))
         ),
         'data': timeline
+    }
+
+
+def chart_age_at(chart, date):
+    """How old the chart is on a date, in years, or None without birth data"""
+    birth_jd = tc.chart_birth_jd(chart)
+    if birth_jd is None:
+        return None
+    jd = tc.em.get_julian_day(date, '12:00', DEFAULT_TIMEZONE)
+    return (jd - birth_jd) / 365.2425
+
+
+@tool('transit_passes', """
+Every time one transit perfects over a long stretch - years or a whole
+lifetime - whether or not it is anywhere near happening today.
+
+This is the tool for "when does Saturn next conjoin my Moon", "how many
+passes does this Pluto square make", "does transiting Neptune ever oppose
+my Sun in my lifetime". Passes are grouped into the approach they belong
+to, so a retrograde that crosses the same point three times reads as one
+transit with three passes rather than three separate events, and each pass
+says whether the planet was direct or retrograde.
+
+Use transit_timeline instead only for a transit happening around now, when
+the orb dates either side matter.
+""", schema({
+    'chart': CHART,
+    'transit_planet': PLANET,
+    'natal_point': {'type': 'string',
+                    'enum': list(PLANETS.keys()) +
+                            ['Ascendant', 'MC', 'Descendant', 'IC'],
+                    'description': 'The natal placement being aspected'},
+    'aspect': {'type': 'string', 'enum': list(ALL_ASPECTS.keys())},
+    'start_date': DATE,
+    'years': {'type': 'number', 'minimum': 0.1, 'maximum': 120,
+              'description': 'How far forward to search from start_date. '
+                             'Default 30.'},
+    'end_date': DATE,
+    'whole_life': {'type': 'boolean',
+                   'description': 'Search the whole life rather than forward '
+                                  'from today: birth to a hundred years after '
+                                  'it. Use this for "has this ever happened" '
+                                  'and "does it happen at all in my lifetime", '
+                                  'which need the passes already behind us as '
+                                  'well as the ones ahead.'}
+}, ['chart', 'transit_planet', 'natal_point', 'aspect']))
+def transit_passes(chart, transit_planet, natal_point, aspect,
+                   start_date=None, years=30, end_date=None, whole_life=False):
+    if whole_life:
+        birth = NATAL_CHARTS[chart]['date']
+        start_date = start_date or birth
+        end_date = end_date or (datetime.strptime(birth, '%Y-%m-%d')
+                                + timedelta(days=round(100 * 365.2425))
+                                ).strftime('%Y-%m-%d')
+    start_date = start_date or today()
+    if not end_date:
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date = (start + timedelta(days=round(float(years) * 365.2425))
+                    ).strftime('%Y-%m-%d')
+
+    hits = tc.scan_future_transits(chart, start_date, end_date,
+                                   transit_planets=[transit_planet],
+                                   aspect_types=[aspect],
+                                   natal_points=[natal_point])
+    series = tc.group_into_series(hits)
+    word = tc.get_aspect_word(aspect)
+    heading = (f"{transit_planet} {word} {chart_label(chart)}'s natal "
+               f"{natal_point}")
+    searched = (f"Searched {start_date} to {end_date}")
+
+    now = today()
+
+    def age_note(date):
+        age = chart_age_at(chart, date)
+        when = 'already happened' if date < now else ''
+        if age is None or age < 0:
+            return f' ({when})' if when else ''
+        return f" (age {int(age)}{', ' + when if when else ''})" 
+
+    def describe(group):
+        lines = []
+        span = (f"{group['count']} passes, {group['first_exact']} to "
+                f"{group['last_exact']}" if group['count'] > 1
+                else f"one pass, {group['first_exact']}")
+        lines.append(f"  {span}{age_note(group['first_exact'])}")
+        for pass_ in group['passes']:
+            lines.append(f"      {pass_['exact_date']}  "
+                         f"{'retrograde' if pass_['exact_retrograde'] else 'direct'}")
+        window = []
+        if group['in_orb_from'] and group['in_orb_until']:
+            window.append(f"in orb {group['in_orb_from']} to {group['in_orb_until']}")
+        if group['stations']:
+            window.append(', '.join(
+                ('goes Rx ' if station['type'] == 'SR' else 'stations direct ')
+                + station['date'] for station in group['stations']))
+        if window:
+            lines.append(f"      {'; '.join(window)}")
+        return '\n'.join(lines)
+
+    if not series:
+        return {
+            'text': lines(
+                heading,
+                searched,
+                '',
+                f'  It never perfects in that stretch. This is a real answer '
+                f'about the range searched, not a failure to find one - '
+                f'search further out if the question was about a whole '
+                f'lifetime.'
+            ),
+            'data': {'chart': chart, 'searched_from': start_date,
+                     'searched_to': end_date, 'series': [], 'total_passes': 0}
+        }
+
+    return {
+        'text': lines(
+            heading,
+            searched,
+            '',
+            *[describe(group) for group in series]
+        ),
+        'data': {'chart': chart, 'searched_from': start_date,
+                 'searched_to': end_date,
+                 'total_passes': sum(g['count'] for g in series),
+                 'series': series}
     }
 
 
@@ -473,12 +601,21 @@ particular aspect's date without knowing roughly when it falls.
     'aspects': {'type': 'array',
                 'items': {'type': 'string', 'enum': list(ALL_ASPECTS.keys())},
                 'description': 'Only these aspects. Default: the major five.'},
+    'natal_points': {'type': 'array',
+                     'items': {'type': 'string',
+                               'enum': list(PLANETS.keys()) +
+                                       ['Ascendant', 'MC', 'Descendant', 'IC']},
+                     'description': 'Only transits to these natal placements. '
+                                    'Narrowing to one or two is what makes a '
+                                    'search over decades quick - "everything '
+                                    'that touches my Sun between now and 2050".'},
     'include_minor': {'type': 'boolean', 'description': 'Default false.'}
 }, ['chart', 'start_date', 'end_date']))
 def scan_transits(chart, start_date, end_date, planets=None, aspects=None,
-                  include_minor=False):
+                  natal_points=None, include_minor=False):
     hits = tc.scan_future_transits(chart, start_date, end_date,
                                    transit_planets=planets, aspect_types=aspects,
+                                   natal_points=natal_points,
                                    include_minor=include_minor)
 
     def describe(hit):

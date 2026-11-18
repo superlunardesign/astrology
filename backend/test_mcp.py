@@ -17,10 +17,12 @@ Run: python test_mcp.py
 """
 import json
 import os
+from datetime import datetime
 
 import app as flask_app
 import mcp_server
 import mcp_tools
+from config import NATAL_CHARTS
 from verify_positions import ELEMENTS, geocentric_longitude
 
 failures = []
@@ -368,6 +370,97 @@ check('the app\'s own copy text is left as it was',
       ' house)' not in mcp_tools.tc.get_daily_dashboard(
           'julian', '2026-11-13', max_orb=3)['plain_text'].split(
               'PLANETARY TRANSITS')[1])
+
+print("\nA transit is found whether or not it is near happening today")
+print("-" * 72)
+# The complaint this tool was built for: Saturn sits at 8° Aries and
+# Christina's Moon at 11° Capricorn, so the conjunction is real but decades
+# out. transit_timeline looks only at the window around a date and used to
+# answer that with "never reaches 0°00'", which reads as "never happens".
+far_off = call('transit_passes', chart='christina', transit_planet='Saturn',
+               natal_point='Moon', aspect='Conjunction', years=40)
+check('a transit nowhere near orb today is still found',
+      '2048' in far_off, f'(got {far_off!r})')
+check('with the passes it makes', '3 passes' in far_off,
+      f'(got {far_off!r})')
+check('each one saying direct or retrograde',
+      far_off.count('direct') >= 2 and 'retrograde' in far_off)
+
+near = call('transit_timeline', chart='christina', transit_planet='Saturn',
+            natal_point='Moon', aspect='Conjunction', date='2026-11-18')
+check('and the window tool no longer reports that as "never reaches 0°00\'"',
+      'Never reaches' not in near and 'transit_passes' in near,
+      f'(got {near!r})')
+
+print("\nPasses are grouped into the approach they belong to")
+print("-" * 72)
+# Saturn square the MC: three passes either side of a station, which is one
+# transit with three passes, not three transits
+mc = mcp_tools.transit_passes('christina', 'Saturn', 'MC', 'Square',
+                              start_date='2026-11-18', years=5)['data']
+check('the three passes come back as one approach',
+      len(mc['series']) == 1 and mc['series'][0]['count'] == 3,
+      f"({len(mc['series'])} series, counts "
+      f"{[s['count'] for s in mc['series']]})")
+check('middle pass is the retrograde one',
+      [p['exact_retrograde'] for p in mc['series'][0]['passes']]
+      == [False, True, False])
+check('and the station that turned it round is named',
+      bool(mc['series'][0]['stations']))
+
+# Over decades the same aspect comes round again - those are separate
+long_run = mcp_tools.transit_passes('christina', 'Saturn', 'MC', 'Square',
+                                    start_date='2026-11-18', years=40)['data']
+check('a later cycle is a separate approach, not the same one',
+      len(long_run['series']) > 1)
+spans = [(datetime.strptime(s['last_exact'], '%Y-%m-%d')
+          - datetime.strptime(s['first_exact'], '%Y-%m-%d')).days
+         for s in long_run['series']]
+check('no approach spans longer than a retrograde loop can reach',
+      max(spans) <= 400, f'(longest {max(spans)} days)')
+
+print("\nA whole life can be searched, backwards as well as forwards")
+print("-" * 72)
+life = mcp_tools.transit_passes('christina', 'Pluto', 'Sun', 'Square',
+                                whole_life=True)
+check('a transit that already happened is found',
+      life['data']['total_passes'] == 3,
+      f"({life['data']['total_passes']} passes)")
+check('dated to 2011', life['data']['series'][0]['first_exact'].startswith('2011'))
+check('with the age it happened at, and that it is behind us',
+      'age 18' in life['text'] and 'already happened' in life['text'],
+      f"(got {life['text']!r})")
+check('the search really did start at birth',
+      life['data']['searched_from'] == NATAL_CHARTS['christina']['date'])
+
+none = mcp_tools.transit_passes('christina', 'Pluto', 'Sun', 'Square',
+                                years=50)
+check('a transit that never perfects says so plainly',
+      none['data']['total_passes'] == 0 and 'never perfects' in none['text'])
+check('and names the range it searched, so "never" is not overread',
+      none['data']['searched_to'][:4] == '2076',
+      f"(to {none['data']['searched_to']})")
+
+# The same planet and point, a different aspect: this one does perfect, in
+# a five-pass approach that no gap rule would hold together - the orb
+# windows overlapping is what keeps it one transit
+long_approach = mcp_tools.transit_passes('christina', 'Pluto', 'Sun',
+                                         'Conjunction', years=50)['data']
+check('Pluto\'s five passes over two years are still one approach',
+      len(long_approach['series']) == 1
+      and long_approach['series'][0]['count'] == 5,
+      f"({len(long_approach['series'])} series, counts "
+      f"{[s['count'] for s in long_approach['series']]})")
+
+print("\nA scan can be narrowed to one natal placement")
+print("-" * 72)
+sun_only = mcp_tools.tc.scan_future_transits(
+    'christina', '2026-11-18', '2031-11-18',
+    transit_planets=['Saturn'], natal_points=['Sun'])
+check('only the placement asked for comes back',
+      {hit['natal_point'] for hit in sun_only} == {'Sun'},
+      f"({ {hit['natal_point'] for hit in sun_only} })")
+check('and it still finds them',  len(sun_only) > 0)
 
 print("\nA search too wide to be honest is refused rather than guessed at")
 print("-" * 72)
